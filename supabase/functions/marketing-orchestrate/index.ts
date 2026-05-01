@@ -1,8 +1,8 @@
 // Orchestrate the marketing-video pipeline as one call.
-// 1) Create ms_generations row (stage=scripting)
-// 2) Call marketing-generate-script -> save script_text + final prompt (stage=videoing)
-// 3) Call marketing-generate-video directly with raw avatar+product refs.
-//    Keyframe step is intentionally skipped — Seedance handles identity from refs (faster + cleaner).
+// SCRIPT WRITER DISABLED — the user-typed prompt is sent directly to the
+// video provider. The avatar's voice sample URL is auto-attached inside
+// marketing-generate-video. Per-format inspo system prompts in
+// marketing-generate-script are kept on disk but no longer called from here.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
@@ -59,6 +59,52 @@ async function invokeFn(name: string, body: unknown) {
   return { ok: res.ok, status: res.status, json, text };
 }
 
+function publicImageUrl(path: string) {
+  return `${SUPABASE_URL}/storage/v1/object/public/ms-products/${path}`;
+}
+function publicAvatarUrl(path: string) {
+  return `${SUPABASE_URL}/storage/v1/object/public/ms-avatars/${path}`;
+}
+
+async function gatherReferenceUrls(admin: ReturnType<typeof createClient>, opts: {
+  productId?: string | null;
+  avatarId?: string | null;
+}): Promise<{ refs: string[]; thumb: string | null }> {
+  const refs: string[] = [];
+  let thumb: string | null = null;
+
+  if (opts.productId) {
+    const { data: imgs } = await admin
+      .from('ms_product_images')
+      .select('storage_path, is_primary')
+      .eq('product_id', opts.productId)
+      .order('is_primary', { ascending: false });
+    for (const img of imgs ?? []) {
+      const url = publicImageUrl((img as any).storage_path);
+      refs.push(url);
+      if (!thumb) thumb = url;
+    }
+  }
+
+  if (opts.avatarId) {
+    const { data: av } = await admin
+      .from('ms_avatars')
+      .select('public_url, storage_path, is_builtin')
+      .eq('id', opts.avatarId)
+      .maybeSingle();
+    if (av) {
+      const url = (av as any).public_url
+        || ((av as any).storage_path ? publicAvatarUrl((av as any).storage_path) : null);
+      if (url) {
+        refs.push(url);
+        if (!thumb) thumb = url;
+      }
+    }
+  }
+
+  return { refs: uniqueValidUrls(refs), thumb };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   try {
@@ -72,13 +118,23 @@ Deno.serve(async (req) => {
       duration_seconds = 8,
       resolution = '720p',
       userPrompt = '',
-      exactVoiceover = false,
       projectId,
     } = await req.json();
 
     const ratio = aspectToRatio(aspect);
+    const finalPrompt = (userPrompt || '').trim();
 
-    // 1) Create the row up front
+    if (!finalPrompt) {
+      return new Response(JSON.stringify({ error: 'prompt required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 1) Resolve refs + thumb up front so the row has something to show.
+    const { refs, thumb } = await gatherReferenceUrls(admin, { productId, avatarId });
+
+    // 2) Persist row immediately at stage=videoing — no scripting step anymore.
     const { data: row, error: insErr } = await admin
       .from('ms_generations')
       .insert({
@@ -91,9 +147,12 @@ Deno.serve(async (req) => {
         aspect: ratio,
         duration_seconds,
         resolution,
-        prompt: userPrompt || '(pending script)',
+        prompt: finalPrompt,
+        script_text: finalPrompt,
+        reference_paths: refs,
+        thumb_url: thumb,
         status: 'queued',
-        stage: 'scripting',
+        stage: 'videoing',
       })
       .select()
       .single();
@@ -101,43 +160,14 @@ Deno.serve(async (req) => {
 
     const generationId = row.id;
 
-    // Respond immediately with the id so the client can start polling stage.
-    // Continue the pipeline in the background using EdgeRuntime.waitUntil.
+    // Respond immediately. Video submission runs in background so the UI
+    // gets a real id to poll without waiting on the provider handshake.
     const runPipeline = async () => {
       try {
-        // 2) Script
-        const scriptRes = await invokeFn('marketing-generate-script', {
-          productId, avatarId, format, surface, aspect: ratio,
-          duration: duration_seconds, userPrompt, exactVoiceover,
-        });
-        if (!scriptRes.ok || !scriptRes.json?.prompt) {
-          throw new Error(`script failed: ${scriptRes.text.slice(0, 300)}`);
-        }
-        const finalPrompt: string = scriptRes.json.prompt;
-        const refUrls = uniqueValidUrls(scriptRes.json.reference_urls || []);
-
-        // Use the first product/avatar image as a placeholder thumb until the video is ready.
-        const placeholderThumb = refUrls[0] ?? null;
-        await admin
-          .from('ms_generations')
-          .update({
-            prompt: finalPrompt,
-            script_text: finalPrompt,
-            reference_paths: refUrls,
-            stage: 'videoing',
-            thumb_url: placeholderThumb,
-          })
-          .eq('id', generationId);
-
-        // 3) Keyframe step DISABLED — go straight to Seedance using raw product + avatar refs.
-        //    This is faster, cheaper, and avoids Nano Banana Pro identity drift.
-        const videoRefs = uniqueValidUrls(refUrls);
-
-        // 4) Video submit (reuse this row)
         const vidRes = await invokeFn('marketing-generate-video', {
           reuseGenerationId: generationId,
           prompt: finalPrompt,
-          image_urls: videoRefs,
+          image_urls: refs,
           aspect: ratio,
           duration_seconds,
           resolution,
@@ -160,7 +190,6 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Fire-and-forget: keep the request short.
     // @ts-ignore - EdgeRuntime is available in Supabase Deno runtime
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
       // @ts-ignore
@@ -170,7 +199,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ id: generationId, stage: 'scripting', status: 'queued' }),
+      JSON.stringify({ id: generationId, stage: 'videoing', status: 'queued' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (e) {
