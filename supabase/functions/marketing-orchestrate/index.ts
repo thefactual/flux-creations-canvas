@@ -237,19 +237,35 @@ Deno.serve(async (req) => {
       maxProductImages: userPromptTrimmed ? 6 : 1,
     });
 
-    // 2) Always build a structured cinematography prompt. If the user typed
-    // their own prompt, it is woven in as a "creator note" rather than sent
-    // raw — this prevents AI slop from underspecified prompts.
-    const finalPrompt = (productId || avatarId)
-      ? buildHiggsfieldPrompt({
-          format,
-          product,
-          avatar,
-          userPrompt: userPromptTrimmed,
-          hasProduct: !!productId,
-          hasAvatar: !!avatarId,
-        })
-      : userPromptTrimmed;
+    // 2) Use the AI script writer for human, format-specific UGC. If it fails
+    // or returns weak copy, fall back to a deterministic Higgsfield-style prompt
+    // instead of sending raw user text or static reference-image instructions.
+    let scriptPayload: any = null;
+    let finalPrompt = userPromptTrimmed;
+    if (productId || avatarId) {
+      const scriptRes = await invokeFn('marketing-generate-script', {
+        productId,
+        avatarId,
+        format,
+        surface,
+        aspect: ratio,
+        duration: duration_seconds,
+        userPrompt: userPromptTrimmed,
+      });
+      const candidate = scriptRes.ok ? scriptRes.json?.prompt : null;
+      scriptPayload = scriptRes.ok ? scriptRes.json?.script : { error: scriptRes.text };
+      finalPrompt = isWeakGeneratedScript(candidate)
+        ? buildFallbackPrompt({
+            format,
+            product,
+            avatar,
+            userPrompt: userPromptTrimmed,
+            hasProduct: !!productId,
+            hasAvatar: !!avatarId,
+          })
+        : String(candidate).trim();
+    }
+    const voiceoverText = scriptPayload?.voiceover_script || extractSpokenLines(finalPrompt);
 
     // 2) Persist row immediately at stage=videoing — no scripting step anymore.
     const { data: row, error: insErr } = await admin
