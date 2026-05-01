@@ -699,7 +699,11 @@ Deno.serve(async (req) => {
       .select()
       .single();
 
-    log('INFO', 'submit: done', { jobId: row.id, provider: result.provider });
+    log('INFO', 'submit: done', {
+      jobId: row.id,
+      provider: result.provider,
+      endpoint: providerEndpoint(result.provider, finalImageUrls.length > 0),
+    });
 
     return new Response(
       JSON.stringify({
