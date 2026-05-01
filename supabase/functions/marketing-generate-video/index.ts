@@ -92,17 +92,12 @@ async function gatherFreshReferenceUrls(admin: any, opts: {
     refs.push(String(opts.keyframeUrl).trim());
   }
 
-  // Cap product refs to a SINGLE primary image. Sending many product angles
-  // makes Seedance treat them as keyframes and produce a static "ken burns"
-  // pan over the source images instead of a real performance — the #1 cause
-  // of AI slop in product+avatar generations.
   if (opts.productId) {
     const { data: imgs } = await admin
       .from('ms_product_images')
       .select('storage_path, is_primary')
       .eq('product_id', opts.productId)
-      .order('is_primary', { ascending: false })
-      .limit(1);
+      .order('is_primary', { ascending: false });
     for (const img of imgs ?? []) {
       const signed = await signedStorageUrl(admin, 'ms-products', (img as any).storage_path);
       if (signed) refs.push(signed);
