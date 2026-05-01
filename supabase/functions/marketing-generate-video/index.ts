@@ -503,7 +503,31 @@ Deno.serve(async (req) => {
       audio: audio_urls.length,
     });
 
-    // 2) Try providers in order
+    // 2) Pre-flight: ask the health endpoint whether providers are usable.
+    //    If both are unhealthy we fail fast with an actionable message instead
+    //    of submitting and watching the queue reject every card.
+    try {
+      const healthRes = await fetch(`${SUPABASE_URL}/functions/v1/marketing-provider-health`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY },
+      });
+      const health = await healthRes.json().catch(() => null);
+      if (health?.blockGeneration) {
+        const msg = `All providers unavailable. Atlas: ${health.atlas?.status} (${health.atlas?.message}). fal: ${health.fal?.status} (${health.fal?.message}).`;
+        await admin
+          .from('ms_generations')
+          .update({ status: 'failed', stage: 'failed', error: msg })
+          .eq('id', row.id);
+        return new Response(
+          JSON.stringify({ id: row.id, status: 'failed', error: msg, blocked: true, health }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    } catch (e) {
+      log('WARN', 'submit: health check failed, proceeding anyway', { err: e instanceof Error ? e.message : String(e) });
+    }
+
+    // 3) Try providers in order
     const result = await submitWithFallback({
       prompt,
       image_urls: finalImageUrls,
