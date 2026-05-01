@@ -386,6 +386,17 @@ function isWeak(
     if (!/(pinch|grip|pull|tug|tap|touch|throws?|leans? (deep|forward|across)|holds? up)/i.test(finalPrompt)) {
       return { weak: true, reason: 'podcast missing tactile proof beat' };
     }
+    // Anti-AI-slop phrasing — reject and regenerate
+    const slopRx = /(hey guys|today i'?m reviewing|let'?s take a look|let'?s talk about|in this video|absolutely love|obsessed with|game ?changer|10 out of 10|highly recommend|must[- ]have|let me tell you)/i;
+    const slopHit = finalPrompt.match(slopRx);
+    if (slopHit) return { weak: true, reason: `podcast script contains banned ad-slop phrase: "${slopHit[0]}"` };
+    // Energy check: needs at least one laugh/smirk/grin/snort and at least one em-dash break for pacing
+    if (!/(laugh|laughs|laughing|snort|grin|smirk|chuckle|breaks? character|tips? .{0,12} head back)/i.test(finalPrompt)) {
+      return { weak: true, reason: 'podcast missing real laughter / expressive reaction beat' };
+    }
+    if (!/—/.test(finalPrompt)) {
+      return { weak: true, reason: 'podcast missing em-dash pacing breaks (lines need self-corrections / interruptions)' };
+    }
   } else {
     if (!/(switches to the back camera|back camera|close-up|macro|props the phone|jump cut|overhead|POV|sets the phone down|detail shot)/i.test(finalPrompt)) return { weak: true, reason: 'too static' };
   }
