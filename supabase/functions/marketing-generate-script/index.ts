@@ -521,6 +521,34 @@ Deno.serve(async (req) => {
       : '';
     const sys = `${HUMAN_UGC_FIREWALL}\n\n${CREATIFY_RUNTIME_DIRECTIVE}\n\n${FORMAT_SYSTEM_PROMPTS[format] || FORMAT_SYSTEM_PROMPTS.UGC}${skillBlock}`;
 
+    // ---------- Build hard duration spec ----------
+    const durSec = Math.max(1, Math.min(60, Number(duration) || 8));
+    // Natural UGC pace ≈ 2.3 words/sec spoken; cap dialogue total accordingly.
+    const maxSpokenWords = Math.max(6, Math.round(durSec * 2.3));
+    // Beat counts scale with duration so a 15s ad doesn't try to fit 5 long beats.
+    let beatCount: number;
+    if (durSec <= 6) beatCount = 2;
+    else if (durSec <= 10) beatCount = 3;
+    else if (durSec <= 15) beatCount = 4;
+    else if (durSec <= 22) beatCount = 5;
+    else beatCount = 6;
+    const beatLen = +(durSec / beatCount).toFixed(1);
+    // Build explicit beat windows like "0.0–3.8s, 3.8–7.5s, ..."
+    const beatWindows: string[] = [];
+    for (let i = 0; i < beatCount; i++) {
+      const a = +(i * beatLen).toFixed(1);
+      const b = i === beatCount - 1 ? durSec : +((i + 1) * beatLen).toFixed(1);
+      beatWindows.push(`${a}–${b}s`);
+    }
+    const durationSpec =
+      `STRICT DURATION SPEC (this OVERRIDES any timings shown in EXAMPLE OUTPUT — examples are stylistic only):\n` +
+      `- TOTAL VIDEO LENGTH: exactly ${durSec} seconds. The script must START at 0s and END by ${durSec}s. Nothing past ${durSec}s.\n` +
+      `- BEAT COUNT: exactly ${beatCount} beats. Use these exact time windows in the paragraph: ${beatWindows.join(', ')}.\n` +
+      `- TOTAL SPOKEN DIALOGUE: at most ${maxSpokenWords} spoken words across the entire script (natural UGC pace ≈ 2.3 words/sec). Count every word inside double quotes. If you exceed this you MUST cut lines.\n` +
+      `- Dialogue is OPTIONAL on short durations (${durSec <= 8 ? 'this is a short ad — silence + ASMR or 1–2 ultra-short lines is preferred over rushed talking' : 'fit lines naturally inside their beats; never cram'}).\n` +
+      `- Hook MUST land within the first beat window (${beatWindows[0]}). Payoff/verdict MUST land in the last beat window (${beatWindows[beatCount - 1]}).\n` +
+      `- Do NOT label this as 15s/22s/etc. unless that matches DURATION. Use the windows above verbatim.\n`;
+
     const userTextBlock =
       `${personaBlock}\n` +
       `${creativeAngleBlock}` +
@@ -530,11 +558,12 @@ Deno.serve(async (req) => {
       `${avatarCtx}\n\n` +
       `${directionBlock}` +
       `ASPECT: ${aspect}\n` +
-      `DURATION: ${duration}s\n\n` +
+      `DURATION: ${durSec}s\n\n` +
+      `${durationSpec}\n` +
       `Look at the attached reference images carefully. Product images are for exact visible product details. Avatar image is for facial identity only; do not use its background, clothes, pose, lighting, or framing as the scene. ` +
       `Extract real visible product details (colors, textures, hardware, printed text, distinctive features) into concrete_product_details — do not invent. ` +
       `Before writing, silently apply the Creatify hook/body framework and make the video concept feel designed, not like a static reference-image animation. ` +
-      `Then write the Seedance 2.0 prompt following every system rule. ` +
+      `Then write the Seedance 2.0 prompt following every system rule AND the STRICT DURATION SPEC above. ` +
       `Voice MUST match CREATOR_PERSONA exactly. ` +
       `Output one continuous paragraph in final_prompt. No preamble, no labels, no headings.`;
 
