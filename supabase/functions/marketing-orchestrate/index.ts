@@ -19,6 +19,48 @@ function aspectToRatio(a: string) {
   return a;
 }
 
+// Seedance reference-to-video aggressively replicates the composition,
+// background, and framing of the FIRST reference image (usually the avatar
+// portrait the user uploaded). That makes every generation look like the
+// same selfie photo just lightly animated. We counter this by prepending an
+// explicit identity-only directive plus a randomized scene seed that forces
+// the model to compose a fresh environment from the script description
+// instead of copying the reference photo's pixels.
+const SCENE_SEEDS = [
+  'a sun-drenched bedroom with sheer linen curtains, late morning warm light',
+  'a minimalist white kitchen with a marble island, cool overcast daylight from a side window',
+  'a cozy living room corner with a tan leather sofa and a tall houseplant, golden-hour side light',
+  'a small balcony with potted plants and a rattan chair, soft afternoon sun',
+  'a Scandinavian home office with a light wood desk and a beige boucle chair, neutral north light',
+  'a tiled bathroom with warm vanity bulbs and a circular mirror, soft incandescent glow',
+  'a bright cafe corner with a marble bistro table and a window behind, warm window light',
+  'a loft entryway with exposed brick and a black framed mirror, directional cool daylight',
+  'a sage-green walled bedroom with a rumpled duvet and an oak nightstand, late-day warm light',
+  'a hallway with a runner rug and a console table holding a small lamp, soft ambient evening light',
+];
+function pickSceneSeed() {
+  return SCENE_SEEDS[Math.floor(Math.random() * SCENE_SEEDS.length)];
+}
+
+function applyAntiReplicationDirective(prompt: string, opts: { hasAvatar: boolean; hasProduct: boolean }) {
+  if (!prompt || typeof prompt !== 'string') return prompt;
+  const seed = pickSceneSeed();
+  const refsLine = opts.hasAvatar && opts.hasProduct
+    ? 'The reference images provide ONLY the creator\'s facial identity / likeness and the product\'s exact appearance. They are NOT the scene, background, framing, lighting, wardrobe, or composition.'
+    : opts.hasAvatar
+      ? 'The reference image provides ONLY the creator\'s facial identity / likeness. It is NOT the scene, background, framing, lighting, wardrobe, or composition.'
+      : 'The reference images provide ONLY the product\'s exact appearance. They are NOT the scene, background, framing, lighting, or composition.';
+  const preamble = [
+    'IDENTITY-ONLY REFERENCES — DO NOT COPY THE REFERENCE PHOTOS:',
+    refsLine,
+    'Build a NEW scene from scratch using the description below. The environment, camera angles, framing, wardrobe, and lighting must NOT match the reference images.',
+    `If the description does not specify a location, use this fresh setting: ${seed}.`,
+    'Vary wardrobe, hair styling, and pose from the reference photo. The creator should be wearing different clothes than in the reference image unless the script explicitly says otherwise.',
+    '',
+  ].join('\n');
+  return `${preamble}${prompt}`;
+}
+
 function isValidHttpUrl(value: unknown) {
   if (typeof value !== 'string' || !value.trim()) return false;
   try {
