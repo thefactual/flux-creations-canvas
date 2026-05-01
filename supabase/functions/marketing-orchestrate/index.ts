@@ -216,7 +216,14 @@ Deno.serve(async (req) => {
 
     // 1) Resolve refs + product/avatar metadata up front so we can build a
     // concrete Higgsfield-style prompt anchored on real visual details.
-    const { refs, thumb, product, avatar } = await gatherReferenceUrls(admin, { productId, avatarId });
+    // When the user did NOT type a prompt, cap product refs to 1 (primary
+    // image only). Sending every reference image makes Seedance frame-blend
+    // them into a static AI-slop output instead of directing a real scene.
+    const { refs, thumb, product, avatar } = await gatherReferenceUrls(admin, {
+      productId,
+      avatarId,
+      maxProductImages: userPromptTrimmed ? 6 : 1,
+    });
 
     // 2) Always build a structured cinematography prompt. If the user typed
     // their own prompt, it is woven in as a "creator note" rather than sent
