@@ -31,12 +31,15 @@ async function signed(path: string, bucket: string) {
   return data?.signedUrl ?? '';
 }
 
+// Module-level cache so reopening the avatar picker shows results instantly.
+let _avatarsCache: DBAvatar[] | null = null;
+
 export function useAvatars() {
-  const [avatars, setAvatars] = useState<DBAvatar[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [avatars, setAvatars] = useState<DBAvatar[]>(() => _avatarsCache ?? []);
+  const [loading, setLoading] = useState(_avatarsCache === null);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (_avatarsCache === null) setLoading(true);
     const { data, error } = await supabase
       .from('ms_avatars')
       .select('*')
@@ -55,6 +58,7 @@ export function useAvatars() {
         return { ...a, thumb };
       }),
     );
+    _avatarsCache = resolved;
     setAvatars(resolved);
     setLoading(false);
   }, []);

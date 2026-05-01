@@ -171,7 +171,7 @@ export function AvatarModal({
               </div>
 
               <div className="p-4 overflow-y-auto ms-scroll">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 min-h-[320px] content-start">
                   <button
                     onClick={() => setView('create')}
                     className="aspect-[4/5] rounded-xl ms-glass-2 border border-dashed border-white/10 hover:border-white/25 flex flex-col items-center justify-center gap-2 text-muted-foreground transition-colors"
@@ -181,29 +181,38 @@ export function AvatarModal({
                     </div>
                     <div className="text-xs font-medium text-foreground">Create avatar</div>
                   </button>
-                  {loading ? (
-                    <div className="col-span-full text-center text-muted-foreground py-8 text-sm">Loading…</div>
-                  ) : (
-                    filtered.map((a) => (
-                      <button
-                        key={a.id}
-                        onClick={() => {
-                          onSelect?.({ id: a.id, name: a.name, thumb: a.thumb });
-                          onOpenChange(false);
-                        }}
-                        className="group relative aspect-[4/5] rounded-xl overflow-hidden ms-glass-2"
-                      >
-                        {a.thumb ? (
-                          <img src={a.thumb} alt={a.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                        ) : (
-                          <div className="w-full h-full bg-white/5" />
-                        )}
-                        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-                          <div className="text-xs font-semibold text-white">{a.name}</div>
-                        </div>
-                      </button>
-                    ))
-                  )}
+                  {loading && avatars.length === 0
+                    ? Array.from({ length: 9 }).map((_, i) => (
+                        <div
+                          key={`sk-${i}`}
+                          className="aspect-[4/5] rounded-xl bg-white/[0.03] animate-pulse"
+                        />
+                      ))
+                    : filtered.map((a) => (
+                        <button
+                          key={a.id}
+                          onClick={() => {
+                            onSelect?.({ id: a.id, name: a.name, thumb: a.thumb });
+                            onOpenChange(false);
+                          }}
+                          className="group relative aspect-[4/5] rounded-xl overflow-hidden ms-glass-2"
+                        >
+                          {a.thumb ? (
+                            <img
+                              src={a.thumb}
+                              alt={a.name}
+                              loading="eager"
+                              decoding="async"
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-white/5" />
+                          )}
+                          <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+                            <div className="text-xs font-semibold text-white">{a.name}</div>
+                          </div>
+                        </button>
+                      ))}
                 </div>
               </div>
             </div>
