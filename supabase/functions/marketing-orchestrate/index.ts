@@ -263,6 +263,15 @@ Deno.serve(async (req) => {
     const userExtraRefs: string[] = uniqueValidUrls(Array.isArray(extraRefImages) ? extraRefImages : []);
     const userExtraNames: string[] = (Array.isArray(extraRefNames) ? extraRefNames : []).map((n: any) => String(n || '').trim());
 
+    // Podcast multi-cam shuffle physically cannot fit in <12s — short durations
+    // produce the "AI slop" frozen wide shot. Force a minimum.
+    let effectiveDuration = Number(duration_seconds) || 8;
+    if (String(format).toLowerCase() === 'podcast' && effectiveDuration < 12) {
+      effectiveDuration = 12;
+    }
+    // Use effectiveDuration for the rest of the pipeline.
+    const duration_seconds_final = effectiveDuration;
+
     const ratio = aspectToRatio(aspect);
     const userPromptTrimmed = (userPrompt || '').trim();
 
