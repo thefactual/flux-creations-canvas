@@ -70,11 +70,13 @@ type AvatarMeta = { name?: string | null; description?: string | null; gender?: 
 async function gatherReferenceUrls(admin: any, opts: {
   productId?: string | null;
   avatarId?: string | null;
+  maxProductImages?: number;
 }): Promise<{ refs: string[]; thumb: string | null; product: ProductMeta; avatar: AvatarMeta }> {
   const refs: string[] = [];
   let thumb: string | null = null;
   let product: ProductMeta = null;
   let avatar: AvatarMeta = null;
+  const productCap = Math.max(1, opts.maxProductImages ?? 999);
 
   if (opts.productId) {
     const { data: prod } = await admin
@@ -89,11 +91,14 @@ async function gatherReferenceUrls(admin: any, opts: {
       .select('storage_path, is_primary')
       .eq('product_id', opts.productId)
       .order('is_primary', { ascending: false });
+    let added = 0;
     for (const img of imgs ?? []) {
+      if (added >= productCap) break;
       const url = await signedStorageUrl(admin, 'ms-products', (img as any).storage_path);
       if (url) {
         refs.push(url);
         if (!thumb) thumb = url;
+        added++;
       }
     }
   }
@@ -211,7 +216,14 @@ Deno.serve(async (req) => {
 
     // 1) Resolve refs + product/avatar metadata up front so we can build a
     // concrete Higgsfield-style prompt anchored on real visual details.
-    const { refs, thumb, product, avatar } = await gatherReferenceUrls(admin, { productId, avatarId });
+    // When the user did NOT type a prompt, cap product refs to 1 (primary
+    // image only). Sending every reference image makes Seedance frame-blend
+    // them into a static AI-slop output instead of directing a real scene.
+    const { refs, thumb, product, avatar } = await gatherReferenceUrls(admin, {
+      productId,
+      avatarId,
+      maxProductImages: userPromptTrimmed ? 6 : 1,
+    });
 
     // 2) Always build a structured cinematography prompt. If the user typed
     // their own prompt, it is woven in as a "creator note" rather than sent
