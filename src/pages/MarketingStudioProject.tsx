@@ -36,6 +36,7 @@ export default function MarketingStudioProject() {
   const updateGeneration = useMarketingStudioStore((s) => s.updateGeneration);
   const [tab, setTab] = useState<'all' | 'liked'>('all');
   const [selected, setSelected] = useState<MSGeneration | null>(null);
+  const [failedDetail, setFailedDetail] = useState<MSGeneration | null>(null);
   const [hydratingProject, setHydratingProject] = useState(false);
   const retrying = useRef<Set<string>>(new Set());
 
