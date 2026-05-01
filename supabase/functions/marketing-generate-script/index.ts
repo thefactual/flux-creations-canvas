@@ -244,18 +244,29 @@ function isWeak(finalPrompt: string, details: string[]): { weak: boolean; reason
 // Gemini Pro on the Lovable Gateway as an emergency fallback. All three return
 // a normalized OpenAI-style response so downstream parsing stays unchanged.
 
+// Anthropic only accepts jpeg/png/gif/webp. AVIF/HEIC/etc must be transcoded.
+// We use the public wsrv.nl image proxy to convert any format to PNG on the fly.
+const ANTHROPIC_OK = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+
 async function fetchImageAsBase64(url: string): Promise<{ data: string; mediaType: string } | null> {
-  try {
-    const r = await fetch(url);
+  const tryFetch = async (u: string) => {
+    const r = await fetch(u);
     if (!r.ok) return null;
-    const mediaType = r.headers.get('content-type') || 'image/jpeg';
+    const mediaType = (r.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
     const buf = new Uint8Array(await r.arrayBuffer());
     let binary = '';
     const chunk = 0x8000;
-    for (let i = 0; i < buf.length; i += chunk) {
-      binary += String.fromCharCode(...buf.subarray(i, i + chunk));
-    }
+    for (let i = 0; i < buf.length; i += chunk) binary += String.fromCharCode(...buf.subarray(i, i + chunk));
     return { data: btoa(binary), mediaType };
+  };
+  try {
+    const direct = await tryFetch(url);
+    if (direct && ANTHROPIC_OK.has(direct.mediaType)) return direct;
+    // Transcode via wsrv.nl (free image proxy, supports AVIF/HEIC → PNG).
+    const proxied = `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`;
+    const png = await tryFetch(proxied);
+    if (png) return { data: png.data, mediaType: 'image/png' };
+    return direct; // last resort
   } catch (e) {
     console.warn('image fetch failed', e);
     return null;
@@ -329,7 +340,11 @@ async function callOpenRouter(args: { systemPrompt: string; userTextBlock: strin
   if (!OPENROUTER_API_KEY) return new Response('no openrouter key', { status: 503 });
   const tool = buildToolSchema(args.hasProduct);
   const userContent: any[] = [];
-  for (const url of args.imageUrls.slice(0, 4)) userContent.push({ type: 'image_url', image_url: { url } });
+  // Use the same transcode-to-PNG path so OpenRouter→Claude doesn't choke on AVIF.
+  for (const url of args.imageUrls.slice(0, 4)) {
+    const safeUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`;
+    userContent.push({ type: 'image_url', image_url: { url: safeUrl } });
+  }
   userContent.push({ type: 'text', text: args.userTextBlock });
   return await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -371,12 +386,14 @@ async function callWriter(args: { systemPrompt: string; userTextBlock: string; i
   if (ANTHROPIC_API_KEY) {
     const r = await callAnthropic(args);
     if (r.ok) return { res: r, provider: 'anthropic' };
-    console.warn('[generate-script] anthropic failed', r.status);
+    const body = await r.clone().text().catch(() => '');
+    console.warn('[generate-script] anthropic failed', r.status, body.slice(0, 500));
   }
   if (OPENROUTER_API_KEY) {
     const r = await callOpenRouter(args);
     if (r.ok) return { res: r, provider: 'openrouter' };
-    console.warn('[generate-script] openrouter failed', r.status);
+    const body = await r.clone().text().catch(() => '');
+    console.warn('[generate-script] openrouter failed', r.status, body.slice(0, 500));
   }
   const r = await callLovableGemini(args);
   return { res: r, provider: 'lovable-gemini' };
