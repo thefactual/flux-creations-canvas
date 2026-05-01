@@ -122,13 +122,22 @@ Deno.serve(async (req) => {
     } = await req.json();
 
     const ratio = aspectToRatio(aspect);
-    const finalPrompt = (userPrompt || '').trim();
+    let finalPrompt = (userPrompt || '').trim();
 
+    // If no prompt was provided but we have product/avatar refs, synthesize a
+    // minimal neutral prompt so the provider has something to work with.
     if (!finalPrompt) {
-      return new Response(JSON.stringify({ error: 'prompt required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      if (productId || avatarId) {
+        const parts: string[] = [];
+        if (avatarId) parts.push('a person');
+        if (productId) parts.push(`${avatarId ? 'holding and showcasing' : 'showcasing'} the product`);
+        finalPrompt = `${format || 'UGC'} style video of ${parts.join(' ')}, natural lighting, cinematic.`;
+      } else {
+        return new Response(JSON.stringify({ error: 'prompt required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // 1) Resolve refs + thumb up front so the row has something to show.
