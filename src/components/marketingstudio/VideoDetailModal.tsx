@@ -57,12 +57,12 @@ export function VideoDetailModal({
             {playSrc ? (
               <video
                 key={playSrc}
-                src={playSrc}
-                poster={generation.thumbUrl}
+                src={`${playSrc}#t=0.1`}
                 controls
                 autoPlay
                 loop
                 playsInline
+                preload="auto"
                 crossOrigin="anonymous"
                 className="max-w-full max-h-full w-auto h-auto object-contain"
               />
