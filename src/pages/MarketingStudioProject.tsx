@@ -408,18 +408,30 @@ export default function MarketingStudioProject() {
                       <div className="text-[10px] text-muted-foreground line-clamp-3">
                         {g.error || 'Try again'}
                       </div>
-                      {/^[0-9a-f-]{36}$/i.test(g.id) && (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        {/^[0-9a-f-]{36}$/i.test(g.id) && (
+                          <span
+                            role="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetry(g);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-medium cursor-pointer"
+                          >
+                            <RefreshCw className="w-3 h-3" /> Retry
+                          </span>
+                        )}
                         <span
                           role="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleRetry(g);
+                            setFailedDetail(g);
                           }}
-                          className="mt-1 inline-flex items-center gap-1 px-2.5 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-medium cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-medium cursor-pointer"
                         >
-                          <RefreshCw className="w-3 h-3" /> Retry
+                          Details
                         </span>
-                      )}
+                      </div>
                     </div>
                   )}
 
