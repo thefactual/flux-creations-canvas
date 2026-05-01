@@ -428,10 +428,24 @@ Deno.serve(async (req) => {
         });
       }
 
+      const startedAt = Date.parse(row.updated_at || row.created_at || '') || Date.now();
+      if (Date.now() - startedAt > PROVIDER_TIMEOUT_MS) {
+        const timeoutMessage = `Timed out after ${Math.round(PROVIDER_TIMEOUT_MS / 60000)} minutes at provider ${row.provider} (${row.fal_request_id}). Submit a retry to create a fresh job.`;
+        const { data: updated } = await admin
+          .from('ms_generations')
+          .update({ status: 'failed', stage: 'failed', error: timeoutMessage })
+          .eq('id', row.id)
+          .select()
+          .single();
+        return new Response(JSON.stringify(updated), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const result =
         row.provider === 'atlascloud'
           ? await pollAtlas(row.fal_request_id)
-          : await pollFal(row.fal_request_id);
+          : await pollFal(row.fal_request_id, providerEndpoint('fal', (row.reference_paths || []).length > 0));
 
       if (result.status === 'done') {
         const { data: updated } = await admin
