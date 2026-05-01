@@ -571,6 +571,10 @@ Deno.serve(async (req) => {
         const { data: av } = await admin.from('ms_avatars').select('voice_sample_url').eq('id', row.avatar_id).maybeSingle();
         if (isValidHttpUrl(av?.voice_sample_url)) audio_urls.push(String(av?.voice_sample_url).trim());
       }
+      if (String(row.format).toLowerCase() === 'podcast') {
+        const secondVoice = await ensurePodcastSecondVoiceUrl(admin);
+        if (secondVoice && !audio_urls.includes(secondVoice)) audio_urls.push(secondVoice);
+      }
       const result = await submitWithFallback({
         prompt: row.prompt,
         image_urls: refs,
