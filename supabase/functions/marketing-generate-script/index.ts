@@ -500,7 +500,9 @@ Deno.serve(async (req) => {
 
     // ---------- Roll persona ----------
     const persona = rollPersona();
+    const creativeAngle = rollCreativeAngle();
     const personaBlock = `CREATOR_PERSONA: ${persona.id} — ${persona.name}\nVOICE GUIDE: ${persona.voice}\n`;
+    const creativeAngleBlock = `CREATIFY_CREATIVE_ANGLE_TO_USE: ${creativeAngle}\n`;
 
     // ---------- POV hands branch ----------
     const isPovHands = !avatarId && !!productId && (format === 'UGC' || format === 'Tutorial' || format === 'Unboxing');
@@ -521,6 +523,7 @@ Deno.serve(async (req) => {
 
     const userTextBlock =
       `${personaBlock}\n` +
+      `${creativeAngleBlock}` +
       `${modeNote}` +
       `${productCtx}\n` +
       `${visionFactsCtx}\n` +
