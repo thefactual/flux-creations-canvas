@@ -252,7 +252,7 @@ export function AddProductModal({
 
             {/* Existing products / apps grid */}
             <div className="px-6 md:px-8 pb-6 flex-1 overflow-y-auto ms-scroll">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 min-h-[320px] content-start">
                 <button
                   onClick={() => setView('create')}
                   className="aspect-square rounded-2xl ms-glass-2 border border-dashed border-white/10 hover:border-white/25 flex flex-col items-center justify-center gap-2 text-muted-foreground transition-colors"
@@ -265,9 +265,15 @@ export function AddProductModal({
                   </div>
                 </button>
 
-                {loading && (
-                  <div className="col-span-full text-center text-muted-foreground text-sm py-6">Loading…</div>
-                )}
+                {/* Skeleton tiles while first-ever load is in flight — prevents
+                    the layout shift caused by an inline "Loading…" row. */}
+                {loading && products.length === 0 &&
+                  Array.from({ length: 9 }).map((_, i) => (
+                    <div
+                      key={`sk-${i}`}
+                      className="aspect-square rounded-2xl bg-white/[0.03] animate-pulse"
+                    />
+                  ))}
                 {!loading && products.length === 0 && (
                   <div className="col-span-full text-center text-muted-foreground text-sm py-6">
                     No products yet. Paste a link above or click "Create manually".
@@ -305,7 +311,13 @@ export function AddProductModal({
                               </button>
                             </div>
                           ) : p.primary_thumb ? (
-                            <img src={p.primary_thumb} alt={p.name} className="w-full h-full object-cover" />
+                            <img
+                              src={p.primary_thumb}
+                              alt={p.name}
+                              loading="eager"
+                              decoding="async"
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
                             <div className="w-full h-full grid place-items-center text-[10px] text-muted-foreground">
                               No image

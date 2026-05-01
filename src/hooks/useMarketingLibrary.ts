@@ -94,33 +94,61 @@ export function useAvatars() {
   return { avatars, loading, refresh, uploadAvatar };
 }
 
+// Module-level cache so reopening the product picker shows results
+// instantly instead of flashing "Loading…" while we re-query.
+let _productsCache: DBProduct[] | null = null;
+
 export function useProducts() {
-  const [products, setProducts] = useState<DBProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<DBProduct[]>(() => _productsCache ?? []);
+  const [loading, setLoading] = useState(_productsCache === null);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (_productsCache === null) setLoading(true);
     const { data: prods } = await supabase
       .from('ms_products')
       .select('*')
       .order('created_at', { ascending: false });
-    const list: DBProduct[] = [];
-    for (const p of prods ?? []) {
-      const { data: imgs } = await supabase
+    const productList = prods ?? [];
+
+    // Fetch ALL images in one query, group client-side — avoids N round trips.
+    const productIds = productList.map((p: any) => p.id);
+    const imagesByProduct: Record<string, any[]> = {};
+    if (productIds.length > 0) {
+      const { data: allImgs } = await supabase
         .from('ms_product_images')
         .select('*')
-        .eq('product_id', p.id);
-      const resolved = await Promise.all(
-        (imgs ?? []).map(async (i: any) => ({
-          id: i.id,
-          storage_path: i.storage_path,
-          is_primary: i.is_primary,
-          signed_url: await signed(i.storage_path, 'ms-products'),
-        })),
-      );
-      const primary = resolved.find((r) => r.is_primary) || resolved[0];
-      list.push({ ...p, images: resolved, primary_thumb: primary?.signed_url ?? null });
+        .in('product_id', productIds);
+      for (const img of allImgs ?? []) {
+        (imagesByProduct[img.product_id] ||= []).push(img);
+      }
     }
+
+    // Sign every URL in parallel rather than serially per product.
+    const signedByImageId: Record<string, string> = {};
+    const signTasks: Promise<void>[] = [];
+    for (const imgs of Object.values(imagesByProduct)) {
+      for (const img of imgs) {
+        signTasks.push(
+          signed(img.storage_path, 'ms-products').then((url) => {
+            signedByImageId[img.id] = url;
+          }),
+        );
+      }
+    }
+    await Promise.all(signTasks);
+
+    const list: DBProduct[] = productList.map((p: any) => {
+      const imgs = imagesByProduct[p.id] ?? [];
+      const resolved = imgs.map((i: any) => ({
+        id: i.id,
+        storage_path: i.storage_path,
+        is_primary: i.is_primary,
+        signed_url: signedByImageId[i.id] ?? '',
+      }));
+      const primary = resolved.find((r) => r.is_primary) || resolved[0];
+      return { ...p, images: resolved, primary_thumb: primary?.signed_url ?? null };
+    });
+    _productsCache = list;
     setProducts(list);
     setLoading(false);
   }, []);
@@ -173,7 +201,11 @@ export function useProducts() {
       // best-effort: remove image rows + product row (storage objects left to lifecycle)
       await supabase.from('ms_product_images').delete().eq('product_id', id);
       await supabase.from('ms_products').delete().eq('id', id);
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setProducts((prev) => {
+        const next = prev.filter((p) => p.id !== id);
+        _productsCache = next;
+        return next;
+      });
     },
     [],
   );
