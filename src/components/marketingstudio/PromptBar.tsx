@@ -170,13 +170,13 @@ export function PromptBar({ projectId }: Props) {
         createdAt: Date.now(),
         submittedAt: Date.now(),
         status: 'queued',
-        stage: orch?.stage || 'scripting',
+        stage: orch?.stage || 'videoing',
       });
 
       // 4. Navigate now (only if we created a new project here)
       if (pslug) navigate(`/marketingstudio/${pslug}`);
       setPrompt('');
-      toast({ title: 'Generation started', description: 'Writing script…' });
+      toast({ title: 'Generation started', description: 'Rendering on Seedance 2.0…' });
     } catch (e: any) {
       toast({ title: 'Generation failed', description: e?.message ?? 'Unknown error', variant: 'destructive' });
     } finally {
