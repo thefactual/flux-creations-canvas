@@ -9,7 +9,7 @@ import { FailedGenerationPanel } from '@/components/marketingstudio/FailedGenera
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-const MAX_GEN_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_GEN_DURATION_MS = 6 * 60 * 1000; // 6 minutes — Seedance 2.0 normally finishes in 1-3 min
 
 function stageLabel(g: MSGeneration): string {
   if (g.status === 'failed') return 'Failed';

@@ -1,0 +1,1 @@
+ALTER TABLE public.ms_generations ADD COLUMN IF NOT EXISTS provider_endpoint text;

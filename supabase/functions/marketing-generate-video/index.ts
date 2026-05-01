@@ -18,7 +18,7 @@ const ATLAS_KEY = Deno.env.get('ATLASCLOUD_API_KEY') ?? '';
 const FAL_KEY = Deno.env.get('FAL_KEY') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const PROVIDER_TIMEOUT_MS = 10 * 60 * 1000;
+const PROVIDER_TIMEOUT_MS = 6 * 60 * 1000;
 
 type Provider = 'atlascloud' | 'fal';
 
@@ -119,7 +119,13 @@ async function uploadAtlasMedia(url: string, index: number, kind: 'image' | 'aud
     body: form,
   });
   const json = await res.json().catch(() => ({}));
-  const uploaded = json?.url ?? json?.data?.url ?? json?.data?.file_url ?? json?.data?.media_url;
+  // Per Atlas docs the upload response is { data: { download_url, file_name, ... } }.
+  const uploaded =
+    json?.data?.download_url ??
+    json?.data?.url ??
+    json?.data?.file_url ??
+    json?.data?.media_url ??
+    json?.url;
   if (!res.ok || !isValidHttpUrl(uploaded)) {
     throw new Error(`Atlas uploadMedia rejected ${kind} ${index + 1}: ${json?.msg || json?.message || res.status}`);
   }
@@ -142,16 +148,6 @@ async function toFalDataUri(url: string, index: number, kind: 'image' | 'audio')
   const contentType = source.headers.get('content-type') || (kind === 'audio' ? 'audio/mpeg' : 'image/jpeg');
   const data = arrayBufferToBase64(await source.arrayBuffer());
   return `data:${contentType};base64,${data}`;
-}
-
-function falSafeImageUrls(opts: { image_urls: string[]; productId?: string | null; avatarId?: string | null }) {
-  if (!opts.avatarId) return opts.image_urls;
-  // fal/Seedance currently accepts the queue request but rejects real-person avatar
-  // references during processing. Keep product refs so a balanced fal account can
-  // still render the ad instead of failing every card.
-  if (opts.productId && opts.image_urls.length > 1) return opts.image_urls.slice(0, -1);
-  if (!opts.productId && opts.image_urls.length > 0) return [];
-  return opts.image_urls;
 }
 
 function hasAudioUrlError(raw: unknown) {
@@ -211,11 +207,10 @@ async function submitAtlas(opts: {
     watermark: false,
   };
   if (hasRefs) {
+    // Atlas Seedance 2.0 schema: reference_images (1-9) + optional reference_audios (1-3).
+    // Source: https://www.atlascloud.ai/models/bytedance/seedance-2.0/reference-to-video
     body.reference_images = atlasImageUrls;
-    body.images = atlasImageUrls;
-    body.image_urls = atlasImageUrls;
-    body.image_url = atlasImageUrls[0];
-    if (atlasAudioUrls.length) body.audio_urls = atlasAudioUrls;
+    if (atlasAudioUrls.length) body.reference_audios = atlasAudioUrls;
   }
 
   const res = await fetch('https://api.atlascloud.ai/api/v1/model/generateVideo', {
@@ -346,7 +341,7 @@ async function submitWithFallback(opts: {
   resolution: string;
   productId?: string | null;
   avatarId?: string | null;
-}): Promise<{ provider: Provider; requestId: string } | { error: string; details: unknown; stage: string }> {
+}): Promise<{ provider: Provider; requestId: string; endpoint: string } | { error: string; details: unknown; stage: string }> {
   const chain = buildChain(opts);
   if (chain.length === 0) return { error: 'no_providers_configured', details: null, stage: 'submit' };
 
@@ -354,19 +349,14 @@ async function submitWithFallback(opts: {
   const reasons: string[] = [];
   for (const provider of chain) {
     try {
-      const providerOpts = provider === 'fal'
-        ? { ...opts, image_urls: falSafeImageUrls(opts) }
-        : opts;
-      if (provider === 'fal' && providerOpts.image_urls.length !== opts.image_urls.length) {
-        log('WARN', 'submit: fal fallback dropping avatar ref to avoid Seedance real-person policy block', {
-          originalRefs: opts.image_urls.length,
-          falRefs: providerOpts.image_urls.length,
-        });
-      }
-      const r = provider === 'atlascloud' ? await submitAtlas(providerOpts) : await submitFal(providerOpts);
+      // Per fal + Atlas Seedance 2.0 docs both accept up to 9 reference_images
+      // (avatar + product). Do not strip refs preemptively; only react to the
+      // provider's own response.
+      const r = provider === 'atlascloud' ? await submitAtlas(opts) : await submitFal(opts);
+      const endpoint = providerEndpoint(provider, opts.image_urls.length > 0);
       if (r.ok && r.requestId) {
-        log('INFO', 'submit: provider accepted', { provider, requestId: r.requestId });
-        return { provider, requestId: r.requestId };
+        log('INFO', 'submit: provider accepted', { provider, requestId: r.requestId, endpoint });
+        return { provider, requestId: r.requestId, endpoint };
       }
       log('WARN', 'submit: provider rejected, trying next', { provider, raw: r.raw });
       lastErr = r.raw;
@@ -374,15 +364,16 @@ async function submitWithFallback(opts: {
       if (provider === 'atlascloud' && raw?.code === 402) {
         reasons.push('AtlasCloud: insufficient balance — top up at atlascloud.ai to continue.');
       } else if (provider === 'fal' && Array.isArray(raw?.detail) && raw.detail[0]?.type === 'content_policy_violation') {
-        reasons.push('fal: avatar image blocked (real-person likeness). Use AtlasCloud instead.');
+        reasons.push('fal: content policy violation on reference image. Try a different photo.');
       } else {
-        reasons.push(`${provider}: ${raw?.msg || raw?.detail?.[0]?.msg || 'rejected'}`);
+        reasons.push(`${provider}: ${raw?.msg || raw?.detail?.[0]?.msg || raw?.message || 'rejected'}`);
       }
       if (provider === 'atlascloud' && opts.audio_urls.length > 0 && hasAudioUrlError(r.raw)) {
         const retry = await submitAtlas({ ...opts, audio_urls: [] });
+        const endpoint = providerEndpoint(provider, opts.image_urls.length > 0);
         if (retry.ok && retry.requestId) {
           log('INFO', 'submit: provider accepted without audio ref', { provider, requestId: retry.requestId });
-          return { provider, requestId: retry.requestId };
+          return { provider, requestId: retry.requestId, endpoint };
         }
         lastErr = retry.raw;
       }
@@ -445,7 +436,7 @@ Deno.serve(async (req) => {
       const result =
         row.provider === 'atlascloud'
           ? await pollAtlas(row.fal_request_id)
-          : await pollFal(row.fal_request_id, providerEndpoint('fal', (row.reference_paths || []).length > 0));
+          : await pollFal(row.fal_request_id, row.provider_endpoint || providerEndpoint('fal', (row.reference_paths || []).length > 0));
 
       if (result.status === 'done') {
         const { data: updated } = await admin
@@ -530,6 +521,7 @@ Deno.serve(async (req) => {
           status: 'queued',
           stage: 'videoing',
           provider: result.provider,
+          provider_endpoint: result.endpoint,
           fal_request_id: result.requestId,
           error: null,
           video_url: null,
@@ -540,7 +532,7 @@ Deno.serve(async (req) => {
       log('INFO', 'retry: submitted', {
         jobId: row.id,
         provider: result.provider,
-        endpoint: providerEndpoint(result.provider, refs.length > 0),
+        endpoint: result.endpoint,
       });
       return new Response(JSON.stringify(updated), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -699,7 +691,7 @@ Deno.serve(async (req) => {
 
     const { data: updated } = await admin
       .from('ms_generations')
-      .update({ provider: result.provider, fal_request_id: result.requestId })
+      .update({ provider: result.provider, provider_endpoint: result.endpoint, fal_request_id: result.requestId })
       .eq('id', row.id)
       .select()
       .single();
@@ -707,7 +699,7 @@ Deno.serve(async (req) => {
     log('INFO', 'submit: done', {
       jobId: row.id,
       provider: result.provider,
-      endpoint: providerEndpoint(result.provider, finalImageUrls.length > 0),
+      endpoint: result.endpoint,
     });
 
     return new Response(
