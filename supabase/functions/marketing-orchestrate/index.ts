@@ -59,14 +59,12 @@ async function invokeFn(name: string, body: unknown) {
   return { ok: res.ok, status: res.status, json, text };
 }
 
-function publicImageUrl(path: string) {
-  return `${SUPABASE_URL}/storage/v1/object/public/ms-products/${path}`;
-}
-function publicAvatarUrl(path: string) {
-  return `${SUPABASE_URL}/storage/v1/object/public/ms-avatars/${path}`;
+async function signedStorageUrl(admin: any, bucket: string, path: string) {
+  const { data } = await admin.storage.from(bucket).createSignedUrl(path, 60 * 60 * 24);
+  return data?.signedUrl ?? null;
 }
 
-async function gatherReferenceUrls(admin: ReturnType<typeof createClient>, opts: {
+async function gatherReferenceUrls(admin: any, opts: {
   productId?: string | null;
   avatarId?: string | null;
 }): Promise<{ refs: string[]; thumb: string | null }> {
@@ -80,9 +78,11 @@ async function gatherReferenceUrls(admin: ReturnType<typeof createClient>, opts:
       .eq('product_id', opts.productId)
       .order('is_primary', { ascending: false });
     for (const img of imgs ?? []) {
-      const url = publicImageUrl((img as any).storage_path);
-      refs.push(url);
-      if (!thumb) thumb = url;
+      const url = await signedStorageUrl(admin, 'ms-products', (img as any).storage_path);
+      if (url) {
+        refs.push(url);
+        if (!thumb) thumb = url;
+      }
     }
   }
 
@@ -94,7 +94,7 @@ async function gatherReferenceUrls(admin: ReturnType<typeof createClient>, opts:
       .maybeSingle();
     if (av) {
       const url = (av as any).public_url
-        || ((av as any).storage_path ? publicAvatarUrl((av as any).storage_path) : null);
+        || ((av as any).storage_path ? await signedStorageUrl(admin, 'ms-avatars', (av as any).storage_path) : null);
       if (url) {
         refs.push(url);
         if (!thumb) thumb = url;

@@ -59,6 +59,90 @@ function uniqueValidUrls(urls: unknown[], limit = 9) {
   return out;
 }
 
+async function signedStorageUrl(admin: any, bucket: string, path: string, ttl = 60 * 60 * 24) {
+  const { data } = await admin.storage.from(bucket).createSignedUrl(path, ttl);
+  return data?.signedUrl ?? null;
+}
+
+async function gatherFreshReferenceUrls(admin: any, opts: {
+  productId?: string | null;
+  avatarId?: string | null;
+  keyframePath?: string | null;
+  keyframeUrl?: string | null;
+  fallbackUrls?: unknown[];
+}) {
+  const refs: string[] = [];
+  if (opts.keyframePath) {
+    const signed = await signedStorageUrl(admin, 'ms-products', opts.keyframePath);
+    if (signed) refs.push(signed);
+  } else if (isValidHttpUrl(opts.keyframeUrl)) {
+    refs.push(String(opts.keyframeUrl).trim());
+  }
+
+  if (opts.productId) {
+    const { data: imgs } = await admin
+      .from('ms_product_images')
+      .select('storage_path, is_primary')
+      .eq('product_id', opts.productId)
+      .order('is_primary', { ascending: false });
+    for (const img of imgs ?? []) {
+      const signed = await signedStorageUrl(admin, 'ms-products', (img as any).storage_path);
+      if (signed) refs.push(signed);
+    }
+  }
+
+  if (opts.avatarId) {
+    const { data: av } = await admin
+      .from('ms_avatars')
+      .select('public_url, storage_path')
+      .eq('id', opts.avatarId)
+      .maybeSingle();
+    const avatarUrl = (av as any)?.public_url || ((av as any)?.storage_path ? await signedStorageUrl(admin, 'ms-avatars', (av as any).storage_path) : null);
+    if (typeof avatarUrl === 'string') refs.push(avatarUrl);
+  }
+
+  return uniqueValidUrls(refs.length ? refs : (opts.fallbackUrls ?? []), 9);
+}
+
+async function uploadAtlasMedia(url: string, index: number, kind: 'image' | 'audio') {
+  const source = await fetch(url);
+  if (!source.ok) throw new Error(`source ${kind} ${index + 1} not downloadable (${source.status})`);
+  const blob = await source.blob();
+  const form = new FormData();
+  const ext = kind === 'audio' ? 'mp3' : ((blob.type.split('/')[1] || 'jpg').split(';')[0]);
+  form.append('file', blob, `${kind}-${index + 1}.${ext}`);
+
+  const res = await fetch('https://api.atlascloud.ai/api/v1/model/uploadMedia', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${ATLAS_KEY}` },
+    body: form,
+  });
+  const json = await res.json().catch(() => ({}));
+  const uploaded = json?.url ?? json?.data?.url ?? json?.data?.file_url ?? json?.data?.media_url;
+  if (!res.ok || !isValidHttpUrl(uploaded)) {
+    throw new Error(`Atlas uploadMedia rejected ${kind} ${index + 1}: ${json?.msg || json?.message || res.status}`);
+  }
+  return String(uploaded);
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function toFalDataUri(url: string, index: number, kind: 'image' | 'audio') {
+  const source = await fetch(url);
+  if (!source.ok) throw new Error(`source ${kind} ${index + 1} not downloadable (${source.status})`);
+  const contentType = source.headers.get('content-type') || (kind === 'audio' ? 'audio/mpeg' : 'image/jpeg');
+  const data = arrayBufferToBase64(await source.arrayBuffer());
+  return `data:${contentType};base64,${data}`;
+}
+
 function falSafeImageUrls(opts: { image_urls: string[]; productId?: string | null; avatarId?: string | null }) {
   if (!opts.avatarId) return opts.image_urls;
   // fal/Seedance currently accepts the queue request but rejects real-person avatar
@@ -94,6 +178,17 @@ async function submitAtlas(opts: {
   const model = hasRefs
     ? 'bytedance/seedance-2.0/reference-to-video'
     : 'bytedance/seedance-2.0/text-to-video';
+  const atlasImageUrls = hasRefs
+    ? await Promise.all(opts.image_urls.slice(0, 9).map((url, index) => uploadAtlasMedia(url, index, 'image')))
+    : [];
+  let atlasAudioUrls: string[] = [];
+  if (hasRefs && opts.audio_urls.length > 0) {
+    try {
+      atlasAudioUrls = await Promise.all(opts.audio_urls.slice(0, 3).map((url, index) => uploadAtlasMedia(url, index, 'audio')));
+    } catch (e) {
+      log('WARN', 'submit: atlas audio upload failed, continuing with image refs', { err: e instanceof Error ? e.message : String(e) });
+    }
+  }
   const body: Record<string, unknown> = {
     model,
     prompt: opts.prompt,
@@ -104,11 +199,12 @@ async function submitAtlas(opts: {
     watermark: false,
   };
   if (hasRefs) {
-    body.reference_images = opts.image_urls.slice(0, 9);
+    body.reference_images = atlasImageUrls;
+    body.images = atlasImageUrls;
+    body.image_urls = atlasImageUrls;
+    body.image_url = atlasImageUrls[0];
+    if (atlasAudioUrls.length) body.audio_urls = atlasAudioUrls;
   }
-  // Do not send avatar voice samples to Atlas here: Seedance/Atlas currently
-  // rejects signed audio URLs during processing. Avatar identity is locked via
-  // image references; audio is generated from the prompt.
 
   const res = await fetch('https://api.atlascloud.ai/api/v1/model/generateVideo', {
     method: 'POST',
@@ -154,6 +250,12 @@ async function submitFal(opts: {
   const endpoint = hasRefs
     ? 'https://queue.fal.run/bytedance/seedance-2.0/reference-to-video'
     : 'https://queue.fal.run/bytedance/seedance-2.0/text-to-video';
+  const falImageUrls = hasRefs
+    ? await Promise.all(opts.image_urls.slice(0, 9).map((url, index) => toFalDataUri(url, index, 'image')))
+    : [];
+  const falAudioUrls = hasRefs && opts.audio_urls.length > 0
+    ? await Promise.all(opts.audio_urls.slice(0, 3).map((url, index) => toFalDataUri(url, index, 'audio')))
+    : [];
   const payload: Record<string, unknown> = {
     prompt: opts.prompt,
     aspect_ratio: opts.ratio,
@@ -163,8 +265,9 @@ async function submitFal(opts: {
   };
   if (hasRefs) {
     // fal Seedance 2.0 schema uses `image_urls` (and historically `reference_image_urls`).
-    payload.image_urls = opts.image_urls.slice(0, 9);
-    payload.reference_image_urls = opts.image_urls.slice(0, 9);
+    payload.image_urls = falImageUrls;
+    payload.reference_image_urls = falImageUrls;
+    if (falAudioUrls.length) payload.audio_urls = falAudioUrls;
   }
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -361,12 +464,19 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      // Send the composed keyframe first, then the raw product/avatar refs so identity stays locked.
-      const refs = uniqueValidUrls(row.keyframe_url ? [row.keyframe_url, ...(row.reference_paths || [])] : (row.reference_paths || []), 9);
+      // Re-sign stored private assets on every retry. fal requires publicly accessible URLs;
+      // Atlas docs recommend uploading media first, which submitAtlas handles after this step.
+      const refs = await gatherFreshReferenceUrls(admin, {
+        productId: row.product_id,
+        avatarId: row.avatar_id,
+        keyframePath: row.keyframe_path,
+        keyframeUrl: row.keyframe_url,
+        fallbackUrls: row.reference_paths || [],
+      });
       const audio_urls: string[] = [];
       if (row.avatar_id) {
         const { data: av } = await admin.from('ms_avatars').select('voice_sample_url').eq('id', row.avatar_id).maybeSingle();
-        if (isValidHttpUrl(av?.voice_sample_url)) audio_urls.push(av.voice_sample_url.trim());
+        if (isValidHttpUrl(av?.voice_sample_url)) audio_urls.push(String(av?.voice_sample_url).trim());
       }
       const result = await submitWithFallback({
         prompt: row.prompt,
@@ -434,8 +544,14 @@ Deno.serve(async (req) => {
     const resolutionN = normalizeRes(resolution);
     const ratio = aspectToRatio(aspect);
 
-    // Send the composed keyframe first, then the raw product/avatar refs so Seedance keeps identity and product fidelity.
-    const finalImageUrls = uniqueValidUrls(keyframe_url ? [keyframe_url, ...image_urls] : image_urls, 9);
+    // Re-sign stored private assets and send the composed keyframe first, then raw
+    // product/avatar refs so Seedance keeps identity and product fidelity.
+    const finalImageUrls = await gatherFreshReferenceUrls(admin, {
+      productId,
+      avatarId,
+      keyframeUrl: keyframe_url,
+      fallbackUrls: keyframe_url ? [keyframe_url, ...image_urls] : image_urls,
+    });
 
     // Pull the avatar's pre-generated reference voice clip.
     const audio_urls: string[] = [];
@@ -445,7 +561,7 @@ Deno.serve(async (req) => {
         .select('voice_sample_url')
         .eq('id', avatarId)
         .maybeSingle();
-      if (isValidHttpUrl(av?.voice_sample_url)) audio_urls.push(av.voice_sample_url.trim());
+      if (isValidHttpUrl(av?.voice_sample_url)) audio_urls.push(String(av?.voice_sample_url).trim());
     }
 
     // 1) Persist row immediately (so client polling has a real id) — or reuse one created by the orchestrator
