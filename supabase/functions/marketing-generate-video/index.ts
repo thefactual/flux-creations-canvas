@@ -83,6 +83,7 @@ async function gatherFreshReferenceUrls(admin: any, opts: {
   keyframePath?: string | null;
   keyframeUrl?: string | null;
   fallbackUrls?: unknown[];
+  maxProductImages?: number;
 }) {
   const refs: string[] = [];
   if (opts.keyframePath) {
@@ -98,9 +99,15 @@ async function gatherFreshReferenceUrls(admin: any, opts: {
       .select('storage_path, is_primary')
       .eq('product_id', opts.productId)
       .order('is_primary', { ascending: false });
+    const productCap = Math.max(1, opts.maxProductImages ?? 1);
+    let added = 0;
     for (const img of imgs ?? []) {
+      if (added >= productCap) break;
       const signed = await signedStorageUrl(admin, 'ms-products', (img as any).storage_path);
-      if (signed) refs.push(signed);
+      if (signed) {
+        refs.push(signed);
+        added++;
+      }
     }
   }
 
@@ -114,7 +121,7 @@ async function gatherFreshReferenceUrls(admin: any, opts: {
     if (typeof avatarUrl === 'string') refs.push(avatarUrl);
   }
 
-  return uniqueValidUrls(refs.length ? refs : (opts.fallbackUrls ?? []), 9);
+  return uniqueValidUrls(refs.length ? refs : (opts.fallbackUrls ?? []), 3);
 }
 
 async function uploadAtlasMedia(url: string, index: number, kind: 'image' | 'audio') {
@@ -587,6 +594,7 @@ Deno.serve(async (req) => {
       avatarId,
       keyframeUrl: keyframe_url,
       fallbackUrls: keyframe_url ? [keyframe_url, ...image_urls] : image_urls,
+      maxProductImages: 1,
     });
 
     // Pull the avatar's pre-generated reference voice clip.

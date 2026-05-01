@@ -11,6 +11,18 @@ const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+const HUMAN_UGC_FIREWALL = `You are not writing ad copy. You are writing the exact prompt a strong UGC director would send to a video model.
+
+Hard rules that override every format below:
+- Make a fresh scene, not a recreation of the uploaded product/avatar reference images. References are identity/product anchors only.
+- The creator's spoken lines must sound like a real person talking to a friend, not a brand, narrator, influencer script, or marketing voiceover.
+- No generic praise unless it is attached to a concrete physical detail. Avoid empty lines like "I'm obsessed", "so good", "love this" unless the next words name the exact color, texture, fit, hardware, movement, sound, or result.
+- Every beat must contain real physical action: tilt, tap, trace, pull, peel, wear, use, rotate, pour, draw, lace, zip, clasp, sip, test, compare, or reveal.
+- Mention the product by its literal PRODUCT_NAME, but do not repeat the name in every sentence.
+- If the user prompt is blank, invent a product-specific creative angle from PRODUCT_DESCRIPTION and product type. Never default to a static hold-up.
+- If an avatar is provided, use them as the creator inside the scene. If no avatar is provided, use POV hands or product-only UGC, not a random invented spokesperson.
+- Output should feel like the Higgsfield examples: camera/style line, concrete scene/product paragraph, then an action and dialogue sequence with timed physical beats.`;
+
 const UGC_PROMPT = `You write Seedance 2.0 video generation prompts for UGC-style product review videos. Your output is a single continuous paragraph of 220–380 words. No headings, no bullet points, no numbered steps, no emojis, no hashtags.
 
 The video is vertical 9:16, shot on iPhone front and back camera mix, natural daylight or warm indoor light, real skin tones, no filters, no color grading, slight handheld micro-shake. The energy is "showing a friend my new thing" — casual, unpolished, genuinely excited.
@@ -250,7 +262,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const sys = FORMAT_SYSTEM_PROMPTS[format] || FORMAT_SYSTEM_PROMPTS.UGC;
+    const sys = `${HUMAN_UGC_FIREWALL}\n\n${FORMAT_SYSTEM_PROMPTS[format] || FORMAT_SYSTEM_PROMPTS.UGC}`;
 
     const userMsg =
       `${productCtx}\n\n${avatarCtx}\n\n` +
@@ -259,6 +271,8 @@ Deno.serve(async (req) => {
       `DURATION: ${duration}s\n\n` +
       `Generate the final Seedance 2.0 prompt now, following every rule in the system message. ` +
       `Use the literal PRODUCT_NAME and AVATAR_NAME above — do not invent a different product or person. ` +
+      `If reference images exist, treat them only as visual anchors; create a new UGC scene with real action, not a still copy of those images. ` +
+      `Make the voiceover_script painfully human: short, specific, imperfect, tied to visible product details, never generic ad praise. ` +
       `Output one continuous paragraph in the final_prompt field. No preamble, no labels, no headings.`;
 
     const aiRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {

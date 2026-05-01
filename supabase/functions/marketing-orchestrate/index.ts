@@ -1,8 +1,7 @@
 // Orchestrate the marketing-video pipeline as one call.
-// SCRIPT WRITER DISABLED — the user-typed prompt is sent directly to the
-// video provider. The avatar's voice sample URL is auto-attached inside
-// marketing-generate-video. Per-format inspo system prompts in
-// marketing-generate-script are kept on disk but no longer called from here.
+// Generates a human, format-specific UGC script first, then submits the
+// resulting Seedance prompt to the video provider. Reference images are used
+// only as product/avatar anchors, not as the creative idea.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
@@ -123,11 +122,24 @@ async function gatherReferenceUrls(admin: any, opts: {
   return { refs: uniqueValidUrls(refs), thumb, product, avatar };
 }
 
-// Build a Higgsfield-style, single continuous shot prompt. Anchors on real
-// product/avatar metadata so Seedance gets concrete visual cues instead of
-// having to invent everything (which causes AI slop, especially with both
-// product + avatar references attached).
-function buildHiggsfieldPrompt(args: {
+function extractSpokenLines(text: string) {
+  const matches = [...text.matchAll(/"([^"\n]{2,160})"/g)].map((m) => m[1].trim());
+  return matches.slice(0, 6).join('\n');
+}
+
+function isWeakGeneratedScript(text: unknown) {
+  if (typeof text !== 'string') return true;
+  const t = text.trim();
+  if (t.length < 450) return true;
+  if (!/Action and dialogue sequence|BEAT|0[–-]|JUMP CUT|HOOK/i.test(t)) return true;
+  if (!/"[^"\n]{2,120}"/.test(t)) return true;
+  if (/introducing|game-changer|elevate|revolutionary|level up|must-have|perfect for|you'll love/i.test(t)) return true;
+  return false;
+}
+
+// Deterministic fallback only if the AI script writer is unavailable. This is
+// intentionally specific and action-led, but the normal path is the AI writer.
+function buildFallbackPrompt(args: {
   format?: string;
   product: ProductMeta;
   avatar: AvatarMeta;
@@ -144,7 +156,7 @@ function buildHiggsfieldPrompt(args: {
   const avatarSubject = (args.avatar?.gender || '').toLowerCase() === 'male' ? 'a young man' : 'a young woman';
   const userExtra = (args.userPrompt || '').trim();
 
-  // Format-specific cinematography header (single continuous shot, no edits).
+  // Format-specific cinematography header.
   let header = '';
   let beats = '';
 
@@ -152,7 +164,7 @@ function buildHiggsfieldPrompt(args: {
     header = `Vertical 9:16 satisfying ASMR unboxing, overhead top-down camera looking straight down at a light wooden desk, only hands visible — natural female hands with short nails, cozy oversized sweater sleeves, warm soft natural daylight from a window on the left, slow deliberate ASMR-style movements, no music, only crisp natural sounds (cardboard tap, sticker peel, tissue rustle), real skin tones, no filters.`;
     beats = productName
       ? `Hands tap the box lid three times — soft hollow cardboard thuds. Both hands lift the lid straight up slowly, revealing tissue paper inside. Fingers peel the seal with a crisp peel sound, pull the tissue apart, and lift out the ${productName}${productDesc ? ` — ${productDesc}` : ''}. Hands rotate it slowly at center frame, catching the warm light on every surface and detail. Final beat: the ${productName} placed upright on the desk beside the open box, hands pull away, hold the beauty shot for one and a half seconds.`
-      : `Hands slowly open the box, peel the tissue, and lift out the product. Rotate it gently at center frame in warm light, then place it upright on the desk for a final beauty shot.`;
+        : `Hands slowly open the box, peel the tissue, and lift out the product. Rotate it gently at center frame in warm light, then place it upright on the desk for a final beauty shot.`;
   } else if (fmtLower.includes('try on') || fmtLower.includes('try-on')) {
     header = `Vertical 9:16 UGC try-on, shot on iPhone front camera in mirror-selfie style, soft natural daylight in an aesthetic bedroom, handheld slight micro-shake, real skin tones, no color grading, no filters, confident playful "watch this" energy.`;
     beats = `${avatarName ? avatarName : avatarSubject} stands in front of the mirror holding the phone${productName ? `, holds up the ${productName}${productDesc ? ` (${productDesc})` : ''} on a hanger to camera with a small raised-eyebrow smile` : ''}. Quick natural cut: ${avatarPronoun} is now wearing the outfit, smooths the fabric down, turns side to side checking the fit, does one slow confident spin so the fabric catches the light. Final beat: ${avatarPronoun} faces the mirror straight on, strikes a relaxed editorial pose, holds it for a beat, then breaks into a small satisfied smile.`;
@@ -167,7 +179,7 @@ function buildHiggsfieldPrompt(args: {
     beats = `${avatarName ? avatarName : avatarSubject} interacts naturally with the ${productName ?? 'product'}${productDesc ? ` (${productDesc})` : ''} in one continuous flowing shot — the camera glides around them, holds on a clean hero beauty frame of the product at the end.`;
   } else {
     // Default: UGC selfie review — the highest-success template per the reference set.
-    header = `Vertical 9:16 selfie-style UGC review, shot on iPhone front camera, natural daylight, handheld authentic energy, casual "showing a friend" vibe, warm natural light, real skin tones, no filters, single continuous take.`;
+    header = `Vertical 9:16 selfie-style UGC review, shot on iPhone front and back camera mix, natural daylight, handheld authentic energy, casual "showing a friend" vibe, warm natural light, real skin tones, no filters.`;
     if (args.hasAvatar && args.hasProduct) {
       beats = `${avatarName ? avatarName : avatarSubject} holds the ${productName ?? 'product'} up to the front camera with one hand${productDesc ? ` — ${productDesc}` : ''}, tilts it slowly so the light catches every surface, speaking naturally and warmly: "okay so this just arrived and I am obsessed." ${avatarPronoun.charAt(0).toUpperCase() + avatarPronoun.slice(1)} turns it to show another side, brings it close to the lens for a detail beat, then holds it up beside ${avatarPronoun === 'he' ? 'his' : 'her'} face one final time, smiles directly into the lens: "yeah, this is the one."`;
     } else if (args.hasProduct) {
@@ -184,7 +196,7 @@ function buildHiggsfieldPrompt(args: {
   return [
     header,
     beats,
-    'Style rules: one continuous take, no jump cuts that imply editing, no split-screens, no text overlays, no logos baked in, no music, only natural ambient sound. Avoid words like introducing, game-changer, elevate, must-have. Keep dialogue short, casual, real.',
+    'Action and dialogue sequence must create a new scene using the references only as anchors. Do not recreate the exact uploaded product/avatar image. No split-screens, no text overlays, no logos baked in, no music, only natural ambient sound. Avoid words like introducing, game-changer, elevate, must-have. Keep dialogue short, casual, real, and tied to visible physical details.',
   ].join('\n') + userLine;
 }
 
@@ -225,19 +237,35 @@ Deno.serve(async (req) => {
       maxProductImages: userPromptTrimmed ? 6 : 1,
     });
 
-    // 2) Always build a structured cinematography prompt. If the user typed
-    // their own prompt, it is woven in as a "creator note" rather than sent
-    // raw — this prevents AI slop from underspecified prompts.
-    const finalPrompt = (productId || avatarId)
-      ? buildHiggsfieldPrompt({
-          format,
-          product,
-          avatar,
-          userPrompt: userPromptTrimmed,
-          hasProduct: !!productId,
-          hasAvatar: !!avatarId,
-        })
-      : userPromptTrimmed;
+    // 2) Use the AI script writer for human, format-specific UGC. If it fails
+    // or returns weak copy, fall back to a deterministic Higgsfield-style prompt
+    // instead of sending raw user text or static reference-image instructions.
+    let scriptPayload: any = null;
+    let finalPrompt = userPromptTrimmed;
+    if (productId || avatarId) {
+      const scriptRes = await invokeFn('marketing-generate-script', {
+        productId,
+        avatarId,
+        format,
+        surface,
+        aspect: ratio,
+        duration: duration_seconds,
+        userPrompt: userPromptTrimmed,
+      });
+      const candidate = scriptRes.ok ? scriptRes.json?.prompt : null;
+      scriptPayload = scriptRes.ok ? scriptRes.json?.script : { error: scriptRes.text };
+      finalPrompt = isWeakGeneratedScript(candidate)
+        ? buildFallbackPrompt({
+            format,
+            product,
+            avatar,
+            userPrompt: userPromptTrimmed,
+            hasProduct: !!productId,
+            hasAvatar: !!avatarId,
+          })
+        : String(candidate).trim();
+    }
+    const voiceoverText = scriptPayload?.voiceover_script || extractSpokenLines(finalPrompt);
 
     // 2) Persist row immediately at stage=videoing — no scripting step anymore.
     const { data: row, error: insErr } = await admin
@@ -253,7 +281,8 @@ Deno.serve(async (req) => {
         duration_seconds,
         resolution,
         prompt: finalPrompt,
-        script_text: finalPrompt,
+        script: scriptPayload ?? { final_prompt: finalPrompt, voiceover_script: voiceoverText },
+        script_text: voiceoverText || finalPrompt,
         reference_paths: refs,
         thumb_url: thumb,
         status: 'queued',
@@ -281,7 +310,7 @@ Deno.serve(async (req) => {
           format,
           surface,
           projectId,
-          script_text: finalPrompt,
+          script_text: voiceoverText || finalPrompt,
         });
         if (!vidRes.ok) {
           throw new Error(`video submit failed: ${vidRes.text.slice(0, 300)}`);
