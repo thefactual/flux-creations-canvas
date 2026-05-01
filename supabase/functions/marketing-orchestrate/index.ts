@@ -257,7 +257,11 @@ Deno.serve(async (req) => {
       resolution = '720p',
       userPrompt = '',
       projectId,
+      extraRefImages = [],
+      extraRefNames = [],
     } = await req.json();
+    const userExtraRefs: string[] = uniqueValidUrls(Array.isArray(extraRefImages) ? extraRefImages : []);
+    const userExtraNames: string[] = (Array.isArray(extraRefNames) ? extraRefNames : []).map((n: any) => String(n || '').trim());
 
     const ratio = aspectToRatio(aspect);
     const userPromptTrimmed = (userPrompt || '').trim();
