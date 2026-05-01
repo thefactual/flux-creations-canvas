@@ -16,7 +16,7 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 function aspectToRatio(a: string) {
-  if (!a || a === 'Auto') return '9:16';
+  if (!a || a === 'Auto') return 'adaptive';
   return a;
 }
 

@@ -9,7 +9,10 @@ import { FailedGenerationPanel } from '@/components/marketingstudio/FailedGenera
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-const MAX_GEN_DURATION_MS = 6 * 60 * 1000; // 6 minutes — Seedance 2.0 normally finishes in 1-3 min
+const minProviderTimeoutMs = (duration?: string) => {
+  const seconds = Math.min(15, Math.max(4, parseInt(duration || '8') || 8));
+  return Math.max(8 * 60 * 1000, Math.min(15 * 60 * 1000, (6 * 60 + seconds * 30) * 1000));
+};
 
 function stageLabel(g: MSGeneration): string {
   if (g.status === 'failed') return 'Failed';
@@ -165,8 +168,9 @@ export default function MarketingStudioProject() {
       for (const g of active) {
         // Client-side timeout
         const started = g.submittedAt || g.createdAt;
-        if (Date.now() - started > MAX_GEN_DURATION_MS) {
-          const timeoutMessage = 'Timed out after 10 minutes while rendering. The provider did not return a final result; retry will submit a fresh job.';
+        const timeoutMs = minProviderTimeoutMs(g.duration);
+        if (Date.now() - started > timeoutMs) {
+          const timeoutMessage = `Timed out after ${Math.round(timeoutMs / 60000)} minutes while rendering. The provider did not return a final result; retry will submit a fresh job.`;
           updateGeneration(project.id, g.id, {
             status: 'failed',
             stage: 'failed',

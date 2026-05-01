@@ -107,8 +107,8 @@ export function PromptBar({ projectId }: Props) {
 
   const handleGenerate = async () => {
     if (generating) return; // guard against double-clicks / StrictMode double-fire
-    if (!prompt.trim() && !productId) {
-      toast({ title: 'Add a prompt or product', variant: 'destructive' });
+    if (!prompt.trim() && !productId && !avatarId) {
+      toast({ title: 'Add a prompt, product, or avatar', variant: 'destructive' });
       return;
     }
     setGenerating(true);
