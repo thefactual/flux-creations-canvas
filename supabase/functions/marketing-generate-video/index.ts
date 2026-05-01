@@ -436,7 +436,7 @@ Deno.serve(async (req) => {
       const result =
         row.provider === 'atlascloud'
           ? await pollAtlas(row.fal_request_id)
-          : await pollFal(row.fal_request_id, providerEndpoint('fal', (row.reference_paths || []).length > 0));
+          : await pollFal(row.fal_request_id, row.provider_endpoint || providerEndpoint('fal', (row.reference_paths || []).length > 0));
 
       if (result.status === 'done') {
         const { data: updated } = await admin
@@ -521,6 +521,7 @@ Deno.serve(async (req) => {
           status: 'queued',
           stage: 'videoing',
           provider: result.provider,
+          provider_endpoint: result.endpoint,
           fal_request_id: result.requestId,
           error: null,
           video_url: null,
@@ -531,7 +532,7 @@ Deno.serve(async (req) => {
       log('INFO', 'retry: submitted', {
         jobId: row.id,
         provider: result.provider,
-        endpoint: providerEndpoint(result.provider, refs.length > 0),
+        endpoint: result.endpoint,
       });
       return new Response(JSON.stringify(updated), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -690,7 +691,7 @@ Deno.serve(async (req) => {
 
     const { data: updated } = await admin
       .from('ms_generations')
-      .update({ provider: result.provider, fal_request_id: result.requestId })
+      .update({ provider: result.provider, provider_endpoint: result.endpoint, fal_request_id: result.requestId })
       .eq('id', row.id)
       .select()
       .single();
@@ -698,7 +699,7 @@ Deno.serve(async (req) => {
     log('INFO', 'submit: done', {
       jobId: row.id,
       provider: result.provider,
-      endpoint: providerEndpoint(result.provider, finalImageUrls.length > 0),
+      endpoint: result.endpoint,
     });
 
     return new Response(
