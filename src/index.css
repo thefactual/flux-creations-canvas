@@ -120,6 +120,7 @@
 .ms-prompt-scroll::-webkit-scrollbar-thumb:hover { background: hsl(0 0% 100% / 0.22); }
 .ms-prompt-scroll::-webkit-scrollbar-track { background: transparent; margin: 6px 0; }
 .ms-prompt-scroll { scrollbar-width: thin; scrollbar-color: hsl(0 0% 100% / 0.14) transparent; }
+.ms-prompt-editor:empty:before { content: attr(data-placeholder); color: hsl(var(--muted-foreground) / 0.7); pointer-events: none; }
 
 .ms-shimmer {
   background: linear-gradient(110deg, hsl(0 0% 100% / 0) 30%, hsl(0 0% 100% / 0.08) 50%, hsl(0 0% 100% / 0) 70%);
