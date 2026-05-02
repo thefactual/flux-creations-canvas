@@ -23,7 +23,7 @@ export function GlobalHeader() {
   if (location.pathname.startsWith('/marketingstudio')) return null;
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur border-b border-border">
+    <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl">
       <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
         {/* Left: logo + nav */}
         <div className="flex items-center gap-6 min-w-0">
@@ -123,7 +123,7 @@ export function GlobalHeader() {
 
       {/* Mobile nav */}
       {mobileOpen && (
-        <nav className="md:hidden border-t border-border bg-background px-3 py-2 flex flex-col gap-1">
+        <nav className="md:hidden bg-background/95 backdrop-blur-xl px-3 py-2 flex flex-col gap-1">
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
