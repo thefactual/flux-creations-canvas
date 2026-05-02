@@ -603,12 +603,25 @@ function isWeak(
     }
   } else if (format === 'Unboxing') {
     // ── Unboxing taste gates — slop catcher, NEVER a concept gate ──
-    // 1. Camera language MUST be declared in the opening so we know Claude committed.
-    const cameraLangRx = /\b(TOP-DOWN ASMR|THEATRICAL REVEAL|VLOG SELFIE|QUIET HANDHELD|EDITORIAL PAN|JUMP-CUT HAUL|STREET DOC|TABLETOP CINEMATIC|POV FIRST-PERSON|MACRO TACTILE|OVERHEAD STILL-LIFE|OUTDOOR DAYLIGHT|HAUL TRY-ON|SCARCITY DROP|FULL-SET REVEAL)\b/;
-    const head = finalPrompt.slice(0, 280);
-    if (!cameraLangRx.test(head) && !/^[A-Z][A-Z \-]{4,40}—/m.test(head)) {
-      return { weak: true, reason: 'unboxing missing explicit camera-language declaration in opening line' };
+    // 1. STRUCTURED SHAPE — must contain a VIDEO line with a camera-language tag, ≥1 "Scene N — … (window):" label, and the literal "NO MUSIC, ONLY SFX" line.
+    const cameraLangRx = /\b(TOP-DOWN ASMR|THEATRICAL REVEAL|VLOG SELFIE|QUIET HANDHELD|EDITORIAL PAN|JUMP-CUT HAUL|STREET DOC|TABLETOP CINEMATIC|POV FIRST-PERSON|MACRO TACTILE|OVERHEAD STILL-LIFE|OUTDOOR DAYLIGHT|HAUL TRY-ON|SCARCITY DROP|FULL-SET REVEAL|BEDROOM WINDOW UGC|CAFE TABLE REVEAL|WORKBENCH MACRO|GOLDEN-HOUR FLATLAY|GALLERY PLINTH REVEAL|CAR-SEAT STREET DROP)\b/;
+    // The VIDEO line declares the chosen camera language. Pull it out and verify.
+    const videoLineMatch = finalPrompt.match(/(^|\n)[^\n]*\bVIDEO\s+—[^\n]*/);
+    const videoLine = videoLineMatch ? videoLineMatch[0] : '';
+    if (!videoLine) {
+      return { weak: true, reason: 'unboxing missing the structured "@product:UUID @avatar:UUID VIDEO — CAMERA_LANGUAGE — duration vertical (9:16) …" line' };
     }
+    if (!cameraLangRx.test(videoLine) && !/[A-Z][A-Z \-]{3,40}—/.test(videoLine.replace(/^[^—]*VIDEO\s+—\s*/, ''))) {
+      return { weak: true, reason: 'unboxing VIDEO line missing explicit camera-language tag (e.g. "VIDEO — TOP-DOWN ASMR — 10-second vertical (9:16) …")' };
+    }
+    if (!/\bScene\s+1\b[^\n]*\(\s*\d/i.test(finalPrompt)) {
+      return { weak: true, reason: 'unboxing missing "Scene 1 — Title (0–Xs): …" inline label' };
+    }
+    if (!/NO MUSIC,\s*ONLY SFX/i.test(finalPrompt)) {
+      return { weak: true, reason: 'unboxing missing the standalone "NO MUSIC, ONLY SFX" line' };
+    }
+    // The camera-language family decision drives downstream gates — read it from the VIDEO line.
+    const head = videoLine;
     // 2. Banned ad-slop phrases (separate from BANNED_RX, unboxing-specific).
     const unboxingSlopRx = /(today i'?m unboxing|unbox with me|let'?s take a look|here we go|oh my god guys|in this video|absolutely love|obsessed with|game ?changer|10 out of 10|highly recommend|must[- ]have)/i;
     const slopHit = finalPrompt.match(unboxingSlopRx);
