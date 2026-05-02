@@ -287,7 +287,7 @@ async function atlasSubmit(opts: { prompt: string; bundle: ReferenceBundle; dura
   const predictionId = parsed?.data?.id ?? parsed?.id;
   if (!res.ok || !predictionId) {
     const code = parsed?.code ?? res.status;
-    const msg = parsed?.message ?? parsed?.msg ?? parsed?.data?.error ?? text || `http ${res.status}`;
+    const msg = (parsed?.message ?? parsed?.msg ?? parsed?.data?.error ?? text) || `http ${res.status}`;
     return { ok: false, provider: 'atlascloud', endpoint, error: `AtlasCloud ${code}: ${msg}`, raw: parsed || text };
   }
   return { ok: true, provider: 'atlascloud', endpoint, requestId: String(predictionId), raw: parsed };
@@ -322,7 +322,7 @@ async function falSubmit(opts: { prompt: string; bundle: ReferenceBundle; durati
   }
   const requestId = parsed?.request_id ?? parsed?.requestId;
   if (!res.ok || !requestId) {
-    const msg = parsed?.detail ?? parsed?.message ?? parsed?.error ?? text || `http ${res.status}`;
+    const msg = (parsed?.detail ?? parsed?.message ?? parsed?.error ?? text) || `http ${res.status}`;
     const prefix = isBalanceError(res.status, text) ? 'fal.ai balance/auth' : 'fal.ai';
     return { ok: false, provider: 'fal', endpoint, error: `${prefix}: ${msg}`, raw: parsed || text };
   }
@@ -364,7 +364,7 @@ async function atlasPoll(requestId: string): Promise<PollOutcome> {
   try { parsed = JSON.parse(text); } catch { /* keep text */ }
   const data = parsed?.data ?? parsed;
   if (!res.ok) {
-    return { status: 'failed', error: data?.error ?? parsed?.message ?? parsed?.msg ?? text || `AtlasCloud poll http ${res.status}` };
+    return { status: 'failed', error: (data?.error ?? parsed?.message ?? parsed?.msg ?? text) || `AtlasCloud poll http ${res.status}` };
   }
   const status = String(data?.status ?? '').toLowerCase();
   if (status === 'completed' || status === 'succeeded') {
