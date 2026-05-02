@@ -349,14 +349,14 @@ function ModelRow({
   );
 }
 
-function AspectIcon({ ratio }: { ratio: string }) {
-  if (ratio === 'Auto') return <span className="w-4 h-4 border border-current rounded-sm opacity-70" />;
+function AspectIcon({ ratio, className = '' }: { ratio: string; className?: string }) {
+  if (ratio === 'Auto') return <span className={`w-4 h-4 border border-current rounded-sm opacity-70 ${className}`} />;
   const [w, h] = ratio.split(':').map(Number);
   const maxSize = 14;
   const scale = maxSize / Math.max(w, h);
   return (
-    <span className="w-4 h-4 flex items-center justify-center">
-      <span className="border border-current rounded-sm opacity-70" style={{ width: w * scale, height: h * scale }} />
+    <span className={`w-4 h-4 flex items-center justify-center ${className}`}>
+      <span className="border border-current rounded-sm opacity-90" style={{ width: w * scale, height: h * scale }} />
     </span>
   );
 }
