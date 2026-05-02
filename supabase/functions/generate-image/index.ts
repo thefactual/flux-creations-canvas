@@ -339,11 +339,15 @@ serve(async (req) => {
       const size = arToSize(ar, quality, modelConfig.runwareModel);
       const taskUUID = crypto.randomUUID();
 
+      const safePrompt = (prompt && prompt.trim().length >= 2)
+        ? prompt.trim().slice(0, 32000)
+        : (referenceImages.length > 0 ? "Edit this image" : "A high quality image");
+
       const task: Record<string, unknown> = {
         taskType: "imageInference",
         taskUUID,
         model: modelConfig.runwareModel,
-        positivePrompt: prompt,
+        positivePrompt: safePrompt,
         width: size.width,
         height: size.height,
         numberResults: 1,
