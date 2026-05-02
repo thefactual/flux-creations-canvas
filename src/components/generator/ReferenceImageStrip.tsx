@@ -119,10 +119,10 @@ function SortableThumbnail({ id, src, index, onPreview, onRemove }: SortableThum
       {...listeners}
       onClick={() => onPreview()}
       style={{ transform: CSS.Transform.toString(transform), transition, touchAction: 'none' }}
-      className={`group relative h-10 w-10 shrink-0 cursor-grab rounded-lg overflow-hidden border border-border/80 bg-muted/20 active:cursor-grabbing ${isDragging ? 'z-20 opacity-60 scale-105 shadow-xl' : ''}`}
+      className={`group relative h-16 w-16 shrink-0 cursor-grab rounded-2xl overflow-hidden border border-white/10 bg-muted/20 active:cursor-grabbing ${isDragging ? 'z-20 opacity-60 scale-105 shadow-xl' : ''}`}
     >
       <img src={src} alt="" className="pointer-events-none h-full w-full select-none object-cover" draggable={false} />
-      <span className="pointer-events-none absolute bottom-0.5 left-0.5 flex h-4 w-4 items-center justify-center rounded bg-black/60 text-[9px] font-bold text-white backdrop-blur-sm">
+      <span className="pointer-events-none absolute bottom-1 left-1 flex h-4 min-w-4 px-1 items-center justify-center rounded bg-black/65 text-[10px] font-bold text-white backdrop-blur-sm">
         {index + 1}
       </span>
 
@@ -130,9 +130,9 @@ function SortableThumbnail({ id, src, index, onPreview, onRemove }: SortableThum
         type="button"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onRemove(); }}
-        className="absolute -right-1 -top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full border border-border/50 bg-background/80 text-foreground/75 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100 hover:text-foreground"
+        className="absolute right-1 top-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white/90 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 hover:bg-black/90"
       >
-        <X className="h-2.5 w-2.5" />
+        <X className="h-3 w-3" />
       </button>
     </div>
   );
