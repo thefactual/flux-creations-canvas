@@ -194,6 +194,70 @@ interface ReferenceBundle {
   referenceAudios?: string[];
 }
 
+// Collect product photo signed URLs (originals from storage).
+async function fetchProductImageUrls(admin: any, productId: string, max = 6): Promise<string[]> {
+  const out: string[] = [];
+  const { data: imgs } = await admin
+    .from('ms_product_images')
+    .select('storage_path, is_primary')
+    .eq('product_id', productId)
+    .order('is_primary', { ascending: false })
+    .limit(max);
+  for (const img of imgs ?? []) {
+    const signed = await signedStorageUrl(admin, 'ms-products', (img as any).storage_path);
+    if (signed) out.push(signed);
+  }
+  return out;
+}
+
+async function fetchAvatarImageUrl(admin: any, avatarId: string): Promise<string | null> {
+  const { data: a } = await admin
+    .from('ms_avatars')
+    .select('public_url, storage_path')
+    .eq('id', avatarId)
+    .maybeSingle();
+  if (!a) return null;
+  if ((a as any).public_url && isValidHttpUrl((a as any).public_url)) return String((a as any).public_url);
+  if ((a as any).storage_path) {
+    const signed = await signedStorageUrl(admin, 'ms-avatars', (a as any).storage_path);
+    if (signed) return signed;
+  }
+  return null;
+}
+
+// Upload a list of source URLs to Atlas, return only successful Atlas-hosted URLs.
+async function uploadAllToAtlas(sourceUrls: string[], kind: 'image' | 'audio'): Promise<string[]> {
+  const out: string[] = [];
+  for (const url of sourceUrls) {
+    if (!isValidHttpUrl(url)) continue;
+    const r = await atlasUpload(url, kind, out.length);
+    if (r.ok && r.url) out.push(r.url);
+    else log('WARN', `atlas upload failed (${kind})`, { err: r.error });
+  }
+  return out;
+}
+
+/**
+ * Build the Atlas Seedance request bundle.
+ *
+ * IMPORTANT routing rules — these reflect what Atlas Cloud Seedance 2.0 actually
+ * accepts (per docs at /docs/models/video):
+ *
+ *   • image-to-video  → expects a SINGLE first-frame `image`. Atlas runs strict
+ *                       moderation on this image and will reject anything that
+ *                       "may contain real person". So we ONLY use this endpoint
+ *                       when we have a non-human keyframe (e.g. product-only
+ *                       composed keyframe). NEVER for avatar + product — that
+ *                       gets reliably rejected.
+ *
+ *   • reference-to-video → up to 9 `reference_images` + optional `reference_audios`.
+ *                          This is the correct endpoint for avatar/person inputs;
+ *                          it composes a fresh scene using the references for
+ *                          identity/style/product anchoring. This is what every
+ *                          format with an avatar should use.
+ *
+ *   • text-to-video → no image inputs at all.
+ */
 async function buildReferenceBundle(admin: any, opts: {
   productId?: string | null;
   avatarId?: string | null;
@@ -201,83 +265,81 @@ async function buildReferenceBundle(admin: any, opts: {
   keyframeUrl?: string | null;
   format?: string | null;
   audioSourceUrls: string[];
+  extraImageUrls: string[];
+  preferReferenceMode?: boolean;
 }): Promise<ReferenceBundle> {
   const hasAvatar = !!opts.avatarId;
   const hasProduct = !!opts.productId;
-  const hasKeyframe = !!opts.keyframePath || isValidHttpUrl(opts.keyframeUrl);
 
-  // ──── Mode 1: avatar (any combo) → image-to-video using composed keyframe ────
-  if (hasAvatar && hasKeyframe) {
+  // ──── Resolve raw source URLs ────
+  const productSrcs: string[] = hasProduct ? await fetchProductImageUrls(admin, opts.productId!, 6) : [];
+  const avatarSrc: string | null = hasAvatar ? await fetchAvatarImageUrl(admin, opts.avatarId!) : null;
+  const extras: string[] = (opts.extraImageUrls ?? []).filter(isValidHttpUrl);
+
+  // ──── Avatar jobs → reference-to-video ALWAYS ────
+  // Order matters for Seedance: the prompt references "image 1", "image 2", etc.
+  // We put the avatar first (identity anchor) then product photos (so script can
+  // say "the person in image 1 holds the product in image 2…") then extras.
+  if (hasAvatar) {
+    const refSources: string[] = [];
+    if (avatarSrc) refSources.push(avatarSrc);
+    refSources.push(...productSrcs);
+    refSources.push(...extras);
+
+    const refImages = await uploadAllToAtlas(refSources.slice(0, 9), 'image');
+    if (refImages.length > 0) {
+      const audioRefs = await uploadAllToAtlas(opts.audioSourceUrls.slice(0, 3), 'audio');
+      return {
+        mode: 'reference-to-video',
+        referenceImages: refImages,
+        referenceAudios: audioRefs.length ? audioRefs : undefined,
+      };
+    }
+    // If avatar uploads failed entirely, fall through to text-to-video.
+    log('WARN', 'avatar present but no references uploaded — falling back to text-to-video');
+    return { mode: 'text-to-video' };
+  }
+
+  // ──── Product-only jobs → reference-to-video with product photos + extras ────
+  if (hasProduct) {
+    const refSources = [...productSrcs, ...extras];
+    const refImages = await uploadAllToAtlas(refSources.slice(0, 9), 'image');
+    if (refImages.length > 0) {
+      return { mode: 'reference-to-video', referenceImages: refImages };
+    }
+  }
+
+  // ──── No product, no avatar, but extras → reference-to-video using extras ────
+  if (extras.length > 0) {
+    const refImages = await uploadAllToAtlas(extras.slice(0, 9), 'image');
+    if (refImages.length > 0) {
+      return { mode: 'reference-to-video', referenceImages: refImages };
+    }
+  }
+
+  // ──── Optional non-human keyframe path (only when explicitly safe) ────
+  // We currently do NOT route through image-to-video for avatar jobs because
+  // Atlas blocks human first frames. Kept here for future product-only keyframes.
+  const hasKeyframe = !!opts.keyframePath || isValidHttpUrl(opts.keyframeUrl);
+  if (!hasAvatar && hasKeyframe) {
     let keyframeUrl: string | null = null;
-    if (opts.keyframePath) {
-      keyframeUrl = await signedStorageUrl(admin, 'ms-products', opts.keyframePath);
-    }
-    if (!keyframeUrl && isValidHttpUrl(opts.keyframeUrl)) {
-      keyframeUrl = String(opts.keyframeUrl);
-    }
+    if (opts.keyframePath) keyframeUrl = await signedStorageUrl(admin, 'ms-products', opts.keyframePath);
+    if (!keyframeUrl && isValidHttpUrl(opts.keyframeUrl)) keyframeUrl = String(opts.keyframeUrl);
     if (keyframeUrl) {
       const uploaded = await atlasUpload(keyframeUrl, 'image', 0);
       if (uploaded.ok && uploaded.url) {
         return { mode: 'image-to-video', firstFrame: uploaded.url };
       }
-      log('WARN', 'keyframe upload to Atlas failed, falling back', { err: uploaded.error });
     }
   }
 
-  // ──── Mode 2: product only → reference-to-video with product photos ────
-  if (hasProduct && !hasAvatar) {
-    const refUrls: string[] = [];
-    const { data: imgs } = await admin
-      .from('ms_product_images')
-      .select('storage_path, is_primary')
-      .eq('product_id', opts.productId)
-      .order('is_primary', { ascending: false })
-      .limit(3);
-    for (const img of imgs ?? []) {
-      const signed = await signedStorageUrl(admin, 'ms-products', (img as any).storage_path);
-      if (!signed) continue;
-      const uploaded = await atlasUpload(signed, 'image', refUrls.length);
-      if (uploaded.ok && uploaded.url) refUrls.push(uploaded.url);
-    }
-    if (refUrls.length > 0) {
-      return { mode: 'reference-to-video', referenceImages: refUrls.slice(0, 9) };
-    }
-  }
-
-  // ──── Mode 3: avatar present but no usable keyframe → still try reference-to-video
-  // with product images only (avoid uploading raw avatar photo which Atlas blocks
-  // as "may contain real person" on reference-to-video) ────
-  if (hasAvatar && hasProduct) {
-    const refUrls: string[] = [];
-    const { data: imgs } = await admin
-      .from('ms_product_images')
-      .select('storage_path, is_primary')
-      .eq('product_id', opts.productId)
-      .order('is_primary', { ascending: false })
-      .limit(3);
-    for (const img of imgs ?? []) {
-      const signed = await signedStorageUrl(admin, 'ms-products', (img as any).storage_path);
-      if (!signed) continue;
-      const uploaded = await atlasUpload(signed, 'image', refUrls.length);
-      if (uploaded.ok && uploaded.url) refUrls.push(uploaded.url);
-    }
-    if (refUrls.length > 0) {
-      // Optional reference_audios for podcast/avatar voice
-      const audioRefs: string[] = [];
-      for (const audioUrl of opts.audioSourceUrls.slice(0, 3)) {
-        const uploaded = await atlasUpload(audioUrl, 'audio', audioRefs.length);
-        if (uploaded.ok && uploaded.url) audioRefs.push(uploaded.url);
-      }
-      return {
-        mode: 'reference-to-video',
-        referenceImages: refUrls.slice(0, 9),
-        referenceAudios: audioRefs.length ? audioRefs : undefined,
-      };
-    }
-  }
-
-  // ──── Mode 4: text-to-video (no usable image inputs) ────
+  // ──── Text-to-video ────
   return { mode: 'text-to-video' };
+}
+
+function isModerationRealPersonError(err: string | undefined): boolean {
+  if (!err) return false;
+  return /real person|may contain real|moderation|nsfw|content policy/i.test(err);
 }
 
 // ──────────────────────────── orchestrator helpers ────────────────────────────
