@@ -105,7 +105,7 @@ export function PromptBar() {
           />
         )}
 
-        <div className="flex items-stretch gap-2">
+        <div className="flex items-center gap-2">
           {/* Left + button (upload reference) — only when no refs yet */}
           {referenceImages.length === 0 && (
             <button
@@ -146,7 +146,7 @@ export function PromptBar() {
           <button
             onClick={handleSubmit}
             disabled={!prompt.trim()}
-            className="ms-cta self-stretch flex items-center justify-center gap-2 min-h-[88px] px-7 rounded-2xl text-white text-[15px] font-bold disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            className="ms-cta self-center flex items-center justify-center gap-2 h-[72px] px-7 rounded-2xl text-white text-[15px] font-bold disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
             Generate
             <Sparkles className="w-4 h-4" />
