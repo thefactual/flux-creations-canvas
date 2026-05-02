@@ -501,7 +501,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      if (row.status === 'done' || row.status === 'failed') {
+      if (row.status === 'done' || (row.status === 'failed' && !canPollFallbackToFal(row, { status: 'failed', error: row.error ?? 'failed' }))) {
         return new Response(JSON.stringify(row), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
