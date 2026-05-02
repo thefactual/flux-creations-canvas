@@ -215,7 +215,7 @@ export function PromptBar() {
           </Popover>
 
           {/* Quality */}
-          <Popover>
+          <Popover open={qualityOpen} onOpenChange={setQualityOpen}>
             <PopoverTrigger asChild>
               <button className="ms-chip-glass flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs text-foreground transition-all">
                 <Heart className="w-3.5 h-3.5 text-muted-foreground" />
