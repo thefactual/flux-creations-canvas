@@ -154,3 +154,29 @@ export function GlobalHeader() {
     </header>
   );
 }
+
+function LayoutZoomSlider() {
+  const zoom = useLayoutStore((s) => s.zoom);
+  const setZoom = useLayoutStore((s) => s.setZoom);
+  const max = 4;
+  const pct = (zoom / max) * 100;
+  return (
+    <div
+      className="hidden md:flex items-center h-10 px-3 rounded-2xl bg-muted/40 hover:bg-muted/60 transition-colors"
+      title="Adjust grid size"
+    >
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={1}
+        value={zoom}
+        onChange={(e) => setZoom(parseInt(e.target.value, 10))}
+        aria-label="Grid size"
+        className="ms-zoom-slider w-28 cursor-pointer"
+        style={{ background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${pct}%, hsl(0 0% 100% / 0.12) ${pct}%, hsl(0 0% 100% / 0.12) 100%)` }}
+      />
+    </div>
+  );
+}
+
