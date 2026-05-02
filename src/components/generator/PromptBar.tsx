@@ -108,12 +108,21 @@ export function PromptBar() {
     }
     if (!range) return;
     const chip = buildChip(idx, referenceImages[idx]);
-    const space = document.createTextNode('\u00A0');
-    range.insertNode(space);
+    const trailing = document.createTextNode('\u00A0');
+    // Ensure there's a text node BEFORE the chip so users can type to its left
+    const prev = range.startContainer.nodeType === Node.TEXT_NODE
+      ? range.startContainer
+      : (range.startContainer.childNodes[range.startOffset - 1] as Node | undefined);
+    const needsLeading = !prev || prev.nodeType !== Node.TEXT_NODE || (prev.textContent || '').length === 0;
+    range.insertNode(trailing);
     range.insertNode(chip);
-    // Move caret after the inserted space
+    if (needsLeading) {
+      const leading = document.createTextNode('\u00A0');
+      chip.parentNode?.insertBefore(leading, chip);
+    }
+    // Move caret after the inserted trailing space
     const newRange = document.createRange();
-    newRange.setStartAfter(space);
+    newRange.setStartAfter(trailing);
     newRange.collapse(true);
     sel?.removeAllRanges();
     sel?.addRange(newRange);
