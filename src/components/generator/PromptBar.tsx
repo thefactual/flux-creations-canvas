@@ -137,7 +137,7 @@ export function PromptBar() {
               setPrompt(prompt.replace(new RegExp(`@${removedName}\\b`, 'g'), '').replace(/\s{2,}/g, ' ').trim());
             }}
             onReorder={reorderReferenceImages}
-            onChipClick={(idx) => insertMention(`Image ${idx + 1}`)}
+            onChipClick={(idx) => addMentionChip(idx)}
           />
         )}
 
@@ -157,6 +157,30 @@ export function PromptBar() {
 
           {/* Prompt area */}
           <div className="flex-1 min-w-0 flex flex-col gap-1.5 py-1 pr-1">
+            {/* Selected reference chips */}
+            {mentionedIdx.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {mentionedIdx.map((idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-white/[0.06] border border-white/10 text-[12px] font-medium text-foreground/90"
+                  >
+                    {referenceImages[idx] && (
+                      <img src={referenceImages[idx]} alt="" className="w-4 h-4 rounded-full object-cover" />
+                    )}
+                    @Image {idx + 1}
+                    <button
+                      type="button"
+                      onClick={() => removeMentionChip(idx)}
+                      className="ml-0.5 grid place-items-center w-4 h-4 rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                      aria-label="Remove"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="relative">
             <textarea
               ref={textareaRef}
@@ -171,6 +195,7 @@ export function PromptBar() {
                   setMentionOpen(true);
                   setMentionQuery(m[1] || '');
                   setMentionAnchor(caret - (m[1]?.length ?? 0) - 1);
+                  setMentionLength((m[1] ?? '').length);
                 } else {
                   setMentionOpen(false);
                 }
@@ -202,30 +227,24 @@ export function PromptBar() {
                 <div className="max-h-56 overflow-y-auto">
                   {refNames
                     .map((name, idx) => ({ name, idx }))
+                    .filter((r) => !mentionedIdx.includes(r.idx))
                     .filter((r) => r.name.toLowerCase().includes(mentionQuery.toLowerCase()))
                     .map((r) => (
                       <button
                         key={r.idx}
                         type="button"
-                        onClick={() => {
-                          const before = prompt.slice(0, mentionAnchor);
-                          const after = prompt.slice(mentionAnchor).replace(/^@[A-Za-z0-9 ]*/, '');
-                          const next = `${before}@${r.name} ${after.replace(/^\s+/, '')}`;
-                          setPrompt(next);
-                          setMentionOpen(false);
-                          setTimeout(() => {
-                            const pos = (before + `@${r.name} `).length;
-                            textareaRef.current?.focus();
-                            textareaRef.current?.setSelectionRange(pos, pos);
-                          }, 0);
-                        }}
+                        onClick={() => addMentionChip(r.idx)}
                         className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-white/5 text-left"
                       >
                         <img src={referenceImages[r.idx]} alt="" className="w-7 h-7 rounded-md object-cover" />
                         <span className="text-sm text-foreground">@{r.name}</span>
                       </button>
                     ))}
-                  {refNames.filter((n) => n.toLowerCase().includes(mentionQuery.toLowerCase())).length === 0 && (
+                  {refNames
+                    .map((name, idx) => ({ name, idx }))
+                    .filter((r) => !mentionedIdx.includes(r.idx))
+                    .filter((r) => r.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+                    .length === 0 && (
                     <div className="px-3 py-2 text-xs text-muted-foreground">No matches</div>
                   )}
                 </div>
