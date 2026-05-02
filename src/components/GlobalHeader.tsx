@@ -174,7 +174,7 @@ function LayoutZoomSlider() {
         onChange={(e) => setZoom(parseInt(e.target.value, 10))}
         aria-label="Grid size"
         className="ms-zoom-slider w-28 cursor-pointer"
-        style={{ background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${pct}%, hsl(0 0% 100% / 0.12) ${pct}%, hsl(0 0% 100% / 0.12) 100%)` }}
+        style={{ background: `linear-gradient(to right, #FF2D78 0%, #FF2D78 ${pct}%, hsl(0 0% 100% / 0.12) ${pct}%, hsl(0 0% 100% / 0.12) 100%)` }}
       />
     </div>
   );
