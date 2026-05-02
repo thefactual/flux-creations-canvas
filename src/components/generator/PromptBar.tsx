@@ -1,5 +1,5 @@
 import { useGeneratorStore, MODELS, QUALITIES, ASPECT_RATIOS } from '@/store/generatorStore';
-import { ImagePlus, Minus, Plus, Check, Search, AtSign, Sparkles, Heart } from 'lucide-react';
+import { ImagePlus, Minus, Plus, Check, Search, Sparkles, Heart } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ReferenceImageStrip } from '@/components/generator/ReferenceImageStrip';
@@ -262,11 +262,6 @@ export function PromptBar() {
               <Plus className="w-3 h-3" />
             </button>
           </div>
-
-          {/* @ mention */}
-          <button className="ms-chip-glass grid place-items-center w-9 h-9 rounded-full text-foreground transition-all">
-            <AtSign className="w-3.5 h-3.5" />
-          </button>
 
           <div className="flex-1" />
         </div>
