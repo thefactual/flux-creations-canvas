@@ -405,7 +405,7 @@ async function falPoll(endpoint: string, requestId: string): Promise<PollOutcome
     }
     if (status !== 'COMPLETED') return { status: 'processing' };
   } else if (statusRes.status !== 202 && statusRes.status !== 404) {
-    return { status: 'failed', error: statusJson?.detail ?? statusJson?.message ?? statusText || `fal.ai status http ${statusRes.status}` };
+    return { status: 'failed', error: (statusJson?.detail ?? statusJson?.message ?? statusText) || `fal.ai status http ${statusRes.status}` };
   }
 
   const resultRes = await fetch(`${FAL_QUEUE}/${endpoint}/requests/${requestId}`, { headers });
@@ -414,7 +414,7 @@ async function falPoll(endpoint: string, requestId: string): Promise<PollOutcome
   let resultJson: any = {};
   try { resultJson = JSON.parse(resultText); } catch { /* keep text */ }
   if (!resultRes.ok) {
-    const msg = resultJson?.detail ?? resultJson?.message ?? resultJson?.error ?? resultText || `fal.ai result http ${resultRes.status}`;
+    const msg = (resultJson?.detail ?? resultJson?.message ?? resultJson?.error ?? resultText) || `fal.ai result http ${resultRes.status}`;
     if (/in progress|not completed|still processing/i.test(msg)) return { status: 'processing' };
     return { status: 'failed', error: msg };
   }
