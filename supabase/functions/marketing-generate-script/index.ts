@@ -332,12 +332,32 @@ STEP 3 — DECIDE WHO UNBOXES IT.
 - NO AVATAR → invent the hands/persona that visually FITS the product (sage sweater sleeves for cozy collectibles, bare wrist with one thin gold ring for fine jewelry, oversized hoodie sleeves for streetwear, a man's plain ash-grey crew tee + leather watch for quiet-luxury small goods). Match nail color and sleeve color to the product palette.
 - USER ATTACHED A PACKAGING REFERENCE IMAGE (USER_EXTRA_REFERENCE_IMAGES) → that image IS the packaging. Preserve it EXACTLY — color, finish, lid mechanism, ribbon, embossing, text, seals. Do NOT invent a different box. The first extra reference image is the packaging anchor unless USER_DIRECTION says otherwise.
 
-STEP 4 — WRITE IT IN THE REFERENCE STRUCTURE (this is the only HARD rule).
-Match the shape of the REFERENCE LIBRARY entries below — they are how every great unboxing script is shaped:
-  1. ONE-LINE CAMERA/STYLE HEADER — opens with the chosen camera language tag, the duration ("10-second vertical 9:16…"), the lighting source by name (warm window daylight / soft diffused / overhead practical / golden-hour sidelight), the sound design intent (no music — pure ASMR / quiet handling sounds only / iPhone ambient).
-  2. SETTING + PACKAGING + PRODUCT PARAGRAPH — name the surface, the hands or avatar, AND spend ~30%+ of the total word count describing the UNOPENED PACKAGING in concrete physical detail (color, finish, clasps, embossing, printed text exactly as visible, weight, sound when tapped, ribbon, sticker seals, lid mechanism). This is the single biggest quality lever for unboxings — the packaging is the anticipation.
-  3. TIMESTAMPED BEATS — 3 to 6 beats matching the duration spec. Every beat = one physical action + one named SPECIFIC SOUND + one sensory verb. No filler beats.
-  4. CLOSING STYLE LINE — one sentence on the overall vibe, the sound design ("No music — only cardboard friction, tissue rustle, and her low whisper"), the aesthetic reference ("Cozy ASMR for Xiaohongshu/TikTok", "Quiet luxury", "Designer toy collector aesthetic").
+STEP 4 — WRITE IT IN THE EXACT REFERENCE SHAPE (this is the only HARD structural rule).
+Match the SHAPE of the REFERENCE LIBRARY entries below — they are how every great Higgsfield-style unboxing script is shaped. The output is NOT a single flowing paragraph. It is a structured script with these blocks, in this order:
+
+  1. ACTION HEADER LINE — only when there IS dialogue / when an avatar or POV person is performing an action.
+     • If AVATAR_TAG is provided, use it inline (e.g. "Man influencer @avatar:UUID first opens the box @image_1 then takes the product out of the box @product:UUID").
+     • If PRODUCT_TAG is provided, use it inline at the moment the product appears.
+     • If USER_EXTRA_REFERENCE_IMAGES are attached, reference them inline as @image_1, @image_2, … in the order they were attached.
+     • Skip this line entirely for SILENT ASMR scripts (TOP-DOWN ASMR / THEATRICAL REVEAL / MACRO TACTILE / OVERHEAD STILL-LIFE) — they go straight to the VIDEO block.
+
+  2. DIALOGUE BLOCK — only when the chosen camera language uses spoken lines.
+     • Open with: "Dialogue (tone1, tone2, tone3):" where the tones describe the voice (e.g. "quiet, impressed, natural" / "breathy, real, half-laughing" / "breathless, conversational, real friend energy").
+     • Then list each spoken line on its OWN line in double quotes. Inline parenthetical voice cues like "(breathing heavily)" or "(she laughs)" are allowed on their own line.
+     • Silent families OMIT this block entirely.
+
+  3. STANDALONE LINE: NO MUSIC, ONLY SFX (always include this exact line).
+
+  4. VIDEO BLOCK — opens with the reference tags + camera-language tag + duration:
+     • Format: "@product:PRODUCT_UUID @avatar:AVATAR_UUID VIDEO — <CAMERA_LANGUAGE_TAG> — <DURATION>-second vertical (9:16) <one-phrase concept of THIS unboxing>"
+     • Drop @avatar:UUID when there is no avatar (silent / POV hands modes). Always include @product:UUID when PRODUCT_TAG is provided.
+     • Then the body uses these inline labels (NOT markdown headings — written as inline labels in the flowing text, exactly like the reference):
+        – Product: <one or two sentences describing the unopened packaging + product in concrete physical detail. Names color, finish, clasps, embossing, printed text exactly as visible, weight cue, ribbon, sticker seals, lid mechanism. ~30%+ of the body word count lives here — packaging is the anticipation>
+        – Format: <camera, lens/angle, surface, light source by name, hands or avatar appearance, color harmony, sound design intent>
+        – Scene 1 — <Title> (0–Xs): <one physical action + named specific sound + sensory verb>
+        – Scene 2 — <Title> (X–Ys): <…>
+        – Scene 3 — <Title> (Y–Zs): <…> [add Scene 4, Scene 5, Scene 6 as the duration warrants — match the beat count brief]
+        – Overall style: <one closing sentence on the vibe + sound design + aesthetic reference (e.g. "Cozy ASMR for Xiaohongshu/TikTok", "Quiet luxury", "Designer toy collector aesthetic", "Real bedroom UGC")>
 
 ═══ TASTE RULES (apply across every camera language) ═══
 
