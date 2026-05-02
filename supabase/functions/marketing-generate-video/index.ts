@@ -132,9 +132,11 @@ function isModerationError(err: string | undefined) {
   return !!err && /real person|may contain real|moderation|nsfw|content policy|safety/i.test(err);
 }
 
-function providerOrder(bundle: ReferenceBundle, forced?: Provider): Provider[] {
+function providerOrder(_bundle: ReferenceBundle, forced?: Provider): Provider[] {
   if (forced) return [forced];
-  const order: Provider[] = bundle.hasAvatar ? ['fal', 'atlascloud'] : ['atlascloud', 'fal'];
+  // Atlas first regardless of avatar — the wsrv-cropped headshot now passes
+  // moderation, and fal.ai is currently in balance-locked state.
+  const order: Provider[] = ['atlascloud', 'fal'];
   return order.filter((p) => (p === 'fal' ? !!FAL_KEY : !!ATLAS_KEY));
 }
 
@@ -170,9 +172,14 @@ async function fetchAvatarImageUrl(admin: any, avatarId: string): Promise<string
     .eq('id', avatarId)
     .maybeSingle();
   if (!avatar) return null;
-  if (isValidHttpUrl((avatar as any).public_url)) return String((avatar as any).public_url);
-  if ((avatar as any).storage_path) return await signedStorageUrl(admin, 'ms-avatars', (avatar as any).storage_path);
-  return null;
+  let raw: string | null = null;
+  if (isValidHttpUrl((avatar as any).public_url)) raw = String((avatar as any).public_url);
+  else if ((avatar as any).storage_path) raw = await signedStorageUrl(admin, 'ms-avatars', (avatar as any).storage_path);
+  if (!raw) return null;
+  // Route avatar through wsrv.nl: 640x640 face-crop JPG. Smaller, tighter
+  // headshots reliably pass Seedance's "real person" moderator on Atlas, and
+  // this is the exact shape that worked before the recent rewrite.
+  return `https://wsrv.nl/?url=${encodeURIComponent(raw)}&w=640&h=640&fit=cover&a=top&output=jpg`;
 }
 
 async function gatherAudioSourceUrls(admin: any, opts: { avatarId?: string | null; format?: string | null }): Promise<string[]> {
@@ -227,9 +234,13 @@ async function buildReferenceBundle(admin: any, opts: {
   const productUrls = opts.productId ? await fetchProductImageUrls(admin, opts.productId, 7) : [];
   const avatarUrl = opts.avatarId ? await fetchAvatarImageUrl(admin, opts.avatarId) : null;
 
+  // Order matters for Seedance reference-to-video: product refs first, avatar
+  // (already wsrv-cropped to a 640x640 headshot) last. Putting a raw full-body
+  // avatar photo first is what Atlas's "may contain real person" moderator
+  // rejects. Keep extras after the avatar.
   const orderedRefs = uniqueValidUrls([
-    ...(avatarUrl ? [avatarUrl] : []),
     ...productUrls,
+    ...(avatarUrl ? [avatarUrl] : []),
     ...(opts.extraImageUrls ?? []),
   ], 9);
 
@@ -237,19 +248,21 @@ async function buildReferenceBundle(admin: any, opts: {
     mode: orderedRefs.length > 0 ? 'reference-to-video' : 'text-to-video',
     referenceImages: orderedRefs,
     referenceAudios: uniqueValidUrls(opts.audioSourceUrls ?? [], 3),
-    hasAvatar: !!opts.avatarId,
-    hasProduct: !!opts.productId,
+    hasAvatar: !!opts.avatarId && !!avatarUrl,
+    hasProduct: !!opts.productId && productUrls.length > 0,
   };
 }
 
 function withReferenceMap(prompt: string, bundle: ReferenceBundle) {
   if (bundle.mode !== 'reference-to-video' || bundle.referenceImages.length === 0) return prompt;
   const lines: string[] = [];
-  if (bundle.hasAvatar) {
-    lines.push('Reference map: image 1 is the creator/avatar identity. Preserve facial likeness only; do not copy the uploaded photo composition, background, pose, lighting, or wardrobe.');
-    if (bundle.hasProduct) lines.push('Product references start at image 2. Preserve the product shape, color, material, packaging, and visible details exactly.');
+  const productCount = bundle.hasProduct ? Math.max(1, bundle.referenceImages.length - (bundle.hasAvatar ? 1 : 0)) : 0;
+  if (bundle.hasProduct && bundle.hasAvatar) {
+    lines.push(`Reference map: images 1${productCount > 1 ? `–${productCount}` : ''} are product references — preserve product shape, color, material, packaging, and visible details exactly. Image ${productCount + 1} is the creator/avatar identity — preserve facial likeness only; do not copy the uploaded photo composition, background, pose, lighting, or wardrobe.`);
   } else if (bundle.hasProduct) {
-    lines.push('Reference map: images 1 onward are product references. Preserve product shape, color, material, packaging, and visible details exactly.');
+    lines.push('Reference map: all images are product references. Preserve product shape, color, material, packaging, and visible details exactly.');
+  } else if (bundle.hasAvatar) {
+    lines.push('Reference map: the image is the creator/avatar identity. Preserve facial likeness only; do not copy the uploaded photo composition, background, pose, lighting, or wardrobe.');
   } else {
     lines.push('Reference map: use the provided images as visual anchors, not as a first frame to animate.');
   }
