@@ -287,6 +287,7 @@ async function buildReferenceBundle(admin: any, opts: {
 }): Promise<ReferenceBundle> {
   const productUrls = opts.productId ? await fetchProductImageUrls(admin, opts.productId, 7) : [];
   const avatarUrl = opts.avatarId ? await fetchAvatarImageUrl(admin, opts.avatarId) : null;
+  const atlasAvatarAsset = avatarUrl ? await createAtlasPortraitAsset(avatarUrl, opts.avatarId) : null;
   const extraImageUrls = uniqueValidUrls(opts.extraImageUrls ?? [], 9).filter((url) => {
     if (!opts.avatarId) return true;
     // Never pass the original avatar upload as an extra reference. The working
@@ -311,6 +312,7 @@ async function buildReferenceBundle(admin: any, opts: {
   return {
     mode: orderedRefs.length > 0 ? 'reference-to-video' : 'text-to-video',
     referenceImages: orderedRefs,
+    atlasReferenceImages: orderedRefs.map((url) => (avatarUrl && url === avatarUrl && atlasAvatarAsset ? atlasAvatarAsset : url)),
     referenceAudios: uniqueValidUrls(opts.audioSourceUrls ?? [], 3),
     hasAvatar: !!opts.avatarId && !!avatarUrl,
     hasProduct: !!opts.productId && productUrls.length > 0,
