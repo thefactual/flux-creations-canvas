@@ -160,7 +160,9 @@ function ImageCard({ image }: {
         <div className="absolute inset-0 bg-muted animate-pulse" />
       )}
       <img
-        src={image.imageUrl}
+        src={thumbUrl(image.imageUrl, 480, 70)}
+        srcSet={image.imageUrl ? `${thumbUrl(image.imageUrl, 480, 70)} 1x, ${thumbUrl(image.imageUrl, 960, 72)} 2x` : undefined}
+        sizes="(max-width: 640px) 50vw, 220px"
         alt=""
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
