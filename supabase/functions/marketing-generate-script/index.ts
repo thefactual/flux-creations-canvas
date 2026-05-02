@@ -631,9 +631,15 @@ function isWeak(
     const unboxingSlopRx = /(today i'?m unboxing|unbox with me|let'?s take a look|here we go|oh my god guys|in this video|absolutely love|obsessed with|game ?changer|10 out of 10|highly recommend|must[- ]have)/i;
     const slopHit = finalPrompt.match(unboxingSlopRx);
     if (slopHit) return { weak: true, reason: `unboxing contains banned ad-slop phrase: "${slopHit[0]}"` };
-    // 3. Default-look slop — bans the lazy fallbacks.
-    const lookSlopRx = /(ring light|aesthetic background(?! of)|background music|lo-?fi (beat|track)|royalty[- ]free music|on[- ]screen text|subtitle overlay|captions overlay|photo studio|studio lighting|softbox|cyclorama|seamless backdrop|gallery plinth|museum vitrine|packshot|product film|floating hero product)/i;
-    const lookHit = finalPrompt.match(lookSlopRx);
+    // 3. Default-look slop — family-scoped. Silent/ASMR/theatrical/macro/overhead families
+    //    are ALLOWED to be "studio-y" (white silk, controlled light, paper diorama, softbox-like
+    //    diffusion) — that IS the look of the Higgsfield jewelry/toy ASMR references. We only
+    //    ban the universal AI tells (ring light, lo-fi music, on-screen text, packshot/product film/3d render).
+    const silentAsmrFamilyRx = /\b(TOP-DOWN ASMR|THEATRICAL REVEAL|MACRO TACTILE|OVERHEAD STILL-LIFE|TABLETOP CINEMATIC)\b/;
+    const isSilentAsmr = silentAsmrFamilyRx.test(head);
+    const universalLookSlopRx = /(ring light|background music|lo-?fi (beat|track)|royalty[- ]free music|on[- ]screen text|subtitle overlay|captions overlay|packshot|product film|floating hero product|3d render|catalog (?:shot|photo))/i;
+    const homeyOnlyLookSlopRx = /(photo studio|studio lighting|softbox|cyclorama|seamless backdrop|gallery plinth|museum vitrine)/i;
+    const lookHit = finalPrompt.match(universalLookSlopRx) || (!isSilentAsmr ? finalPrompt.match(homeyOnlyLookSlopRx) : null);
     if (lookHit) return { weak: true, reason: `unboxing contains banned default-look phrase: "${lookHit[0]}"` };
     // 4. Sensory verb density — ≥6 hits from real unboxing vocabulary.
     const SENSORY_VERBS = /\b(tap|taps|tapped|peel|peels|peeled|lift|lifts|lifted|rotate|rotates|rotated|tilt|tilts|tilted|drape|drapes|draped|pinch|pinches|pinched|slide|slides|slid|trace|traces|traced|click|clicks|clicked|pop|pops|popped|thunk|rustle|rustles|rustled|crinkle|crinkles|crinkled|whisper|whispers|whispered|swing|swings|swung|grip|grips|gripped|tug|tugs|tugged|pull|pulls|pulled|cut|cuts|snip|snips|snipped|press|presses|pressed|run a finger|fingertip|knuckle)\b/gi;
