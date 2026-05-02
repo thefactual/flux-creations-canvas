@@ -5,6 +5,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ReferenceImageStrip } from '@/components/generator/ReferenceImageStrip';
 import { ChevronDownIcon } from '@/components/marketingstudio/FormatIcons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ModelIcon } from '@/components/generator/ModelIcons';
 
 export function PromptBar() {
   const {
@@ -239,7 +240,9 @@ export function PromptBar() {
           <Popover open={modelOpen} onOpenChange={setModelOpen}>
             <PopoverTrigger asChild>
               <button className="ms-chip-glass flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs text-foreground transition-all">
-                <span className="w-4 h-4 rounded bg-[#FF2D78]/15 grid place-items-center text-[9px] font-bold text-[#FF2D78]">G</span>
+                <span className="grid place-items-center w-4 h-4 text-foreground/90">
+                  <ModelIcon id={model} className="size-3.5" />
+                </span>
                 {selectedModel?.name || model}
                 <ChevronDownIcon className="size-3.5 text-muted-foreground/70" />
               </button>
@@ -421,7 +424,9 @@ function ModelRow({
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/5 transition-colors ${selected ? 'bg-white/10' : ''}`}
     >
-      <span className={`w-8 h-8 rounded-lg grid place-items-center text-xs font-bold shrink-0 ${selected ? 'bg-[#FF2D78]/15 text-[#FF2D78]' : 'bg-white/5 text-foreground'}`}>G</span>
+      <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${selected ? 'bg-[#FF2D78]/15 text-[#FF2D78]' : 'bg-white/5 text-foreground/90'}`}>
+        <ModelIcon id={m.id} className="size-4" />
+      </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-sm text-foreground">{m.name}</span>

@@ -24,43 +24,60 @@ type ModelConfig = {
   fallbackModel?: string; // model ID to retry with if this one fails
 };
 
+// All models route through fal.ai (with Gemini fallback for nano banana family).
+// Each entry has a text-to-image endpoint and (optionally) an edit/image-to-image endpoint
+// that's used automatically when reference images are provided.
 const MODEL_MAP: Record<string, ModelConfig> = {
-  // Gemini models (via apiyi, fallback to fal/runware)
-  "gemini-3.1-flash-image": { apiModel: "gemini-3.1-flash-image-preview", type: "gemini", supportsImageInput: true, isMultiRef: true, fallbackModel: "rw-flux-2-pro" },
-  "gemini-3-pro-image": { apiModel: "gemini-3-pro-image-preview", type: "gemini", supportsImageInput: true, isMultiRef: true, fallbackModel: "rw-flux-2-pro" },
-  "gemini-2.5-flash-image": { apiModel: "gemini-2.5-flash-image", type: "gemini", supportsImageInput: true, isMultiRef: true, fallbackModel: "flux-schnell" },
+  // Google Nano Banana family — primary via apiyi (Gemini), fall back to fal Seedream
+  "nano-banana-pro": {
+    apiModel: "gemini-3-pro-image-preview", type: "gemini",
+    supportsImageInput: true, isMultiRef: true, fallbackModel: "seedream-4",
+  },
+  "nano-banana-2": {
+    apiModel: "gemini-3.1-flash-image-preview", type: "gemini",
+    supportsImageInput: true, isMultiRef: true, fallbackModel: "seedream-4",
+  },
 
-  // Flux Kontext (via fal.ai) — editing models
-  "flux-kontext-pro": { falModel: "fal-ai/flux-pro/kontext", type: "fal", supportsImageInput: true, requiresImage: true, textFallback: "fal-ai/flux-pro/v1.1" },
-  "flux-kontext-max": { falModel: "fal-ai/flux-pro/kontext/max", type: "fal", supportsImageInput: true, requiresImage: true, textFallback: "fal-ai/flux-pro/v1.1" },
-  "flux-kontext-multi": { falModel: "fal-ai/flux-pro/kontext/multi", type: "fal", supportsImageInput: true, isMultiRef: true, requiresImage: true, textFallback: "fal-ai/flux-pro/v1.1" },
+  // ByteDance Seedream — fal.ai
+  "seedream-4": {
+    falModel: "fal-ai/bytedance/seedream/v4/text-to-image",
+    falImageModel: "fal-ai/bytedance/seedream/v4/edit",
+    type: "fal", supportsImageInput: true, isMultiRef: true,
+  },
+  "seedream-5-lite": {
+    falModel: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+    falImageModel: "fal-ai/bytedance/seedream/v5/lite/edit",
+    type: "fal", supportsImageInput: true, isMultiRef: true,
+  },
 
-  // Flux 2 (via fal.ai)
-  "flux-2-pro": { falModel: "fal-ai/flux-2-pro/edit", type: "fal", supportsImageInput: true, requiresImage: true, textFallback: "fal-ai/flux-pro/v1.1" },
-  "flux-2-max": { falModel: "fal-ai/flux-2-max/edit", type: "fal", supportsImageInput: true, requiresImage: true, textFallback: "fal-ai/flux-pro/v1.1" },
-  "flux-2-flex": { falModel: "fal-ai/flux-2-flex/edit", type: "fal", supportsImageInput: true, isMultiRef: true, requiresImage: true, textFallback: "fal-ai/flux-pro/v1.1" },
-  "flux-2-dev": { falModel: "fal-ai/flux-2/edit", type: "fal", supportsImageInput: true, requiresImage: true, textFallback: "fal-ai/flux/dev" },
+  // xAI Grok Imagine — fal.ai (text-to-image only)
+  "grok-imagine": {
+    falModel: "xai/grok-imagine-image",
+    type: "fal", supportsImageInput: false,
+  },
 
-  // Flux 1 (via fal.ai) — text-to-image
-  "flux-schnell": { falModel: "fal-ai/flux/schnell", type: "fal", supportsImageInput: false },
-  "flux-uncensored-v2": { falModel: "fal-ai/flux-lora", falImageModel: "fal-ai/flux-lora/image-to-image", type: "fal", supportsImageInput: true, isMultiRef: false, lora: "https://huggingface.co/enhanceaiteam/Flux-Uncensored-V2/resolve/main/lora.safetensors" },
-  "flux-dev": { falModel: "fal-ai/flux/dev", type: "fal", supportsImageInput: false },
-  "flux-pro-v1.1": { falModel: "fal-ai/flux-pro/v1.1", type: "fal", supportsImageInput: false },
+  // Kling Image V3 — fal.ai
+  "kling": {
+    falModel: "fal-ai/kling-image/v3/text-to-image",
+    falImageModel: "fal-ai/kling-image/v3/image-to-image",
+    type: "fal", supportsImageInput: true,
+  },
 
-  // Other fal.ai models
-  "recraft-v3": { falModel: "fal-ai/recraft-v3", type: "fal", supportsImageInput: false },
-  "ideogram-v3": { falModel: "fal-ai/ideogram/v3", type: "fal", supportsImageInput: false },
+  // Black Forest Labs Flux 2 Pro — fal.ai
+  "flux": {
+    falModel: "fal-ai/flux-pro/v1.1",
+    falImageModel: "fal-ai/flux-2-pro/edit",
+    type: "fal", supportsImageInput: true,
+  },
 
-  // Runware Flux models (uncensored)
-  "rw-flux-1-dev": { runwareModel: "runware:100@1", type: "runware", supportsImageInput: true },
-  "rw-flux-1-schnell": { runwareModel: "runware:100@1", type: "runware", supportsImageInput: false },
-  "rw-flux-2-pro": { runwareModel: "bfl:5@1", type: "runware", supportsImageInput: true },
-  "rw-flux-2-flex": { runwareModel: "bfl:6@1", type: "runware", supportsImageInput: true },
-  "rw-flux-2-dev": { runwareModel: "runware:400@1", type: "runware", supportsImageInput: true },
-  "rw-flux-1.1-pro": { runwareModel: "bfl:2@1", type: "runware", supportsImageInput: false },
-  "rw-flux-1.1-pro-ultra": { runwareModel: "bfl:2@2", type: "runware", supportsImageInput: false },
-  "rw-flux-kontext-dev": { runwareModel: "runware:101@1", type: "runware", supportsImageInput: true },
+  // Wan 2.2 (14B) — fal.ai
+  "wan": {
+    falModel: "fal-ai/wan/v2.2-a14b/text-to-image",
+    falImageModel: "fal-ai/wan/v2.2-a14b/image-to-image",
+    type: "fal", supportsImageInput: true,
+  },
 };
+
 
 const QUALITY_MAP: Record<string, string> = { "1K": "1K", "2K": "2K", "4K": "4K" };
 
@@ -130,7 +147,7 @@ serve(async (req) => {
     const referenceImages = Array.isArray(body?.referenceImages)
       ? body.referenceImages.filter((img: unknown): img is string => typeof img === "string")
       : [];
-    const model = typeof body?.model === "string" ? body.model : "gemini-3.1-flash-image";
+    const model = typeof body?.model === "string" ? body.model : "nano-banana-pro";
     const quality = typeof body?.quality === "string" ? body.quality : "2K";
     const aspectRatio = typeof body?.aspectRatio === "string" ? body.aspectRatio : "1:1";
 
@@ -244,53 +261,44 @@ serve(async (req) => {
         });
       }
 
-      const routedReferenceImages = activeModel === "flux-uncensored-v2"
-        ? referenceImages.slice(0, 1)
-        : referenceImages;
-      const hasReferenceInput = modelConfig.supportsImageInput && routedReferenceImages.length > 0;
-      if (activeModel === "flux-uncensored-v2" && referenceImages.length > 1) {
-        console.log(`Flux Uncensored V2 supports a single fal.ai reference image; using the first of ${referenceImages.length}.`);
-      }
-      let falModel = hasReferenceInput && modelConfig.falImageModel
+      const hasReferenceInput = modelConfig.supportsImageInput && referenceImages.length > 0;
+      const falModel = hasReferenceInput && modelConfig.falImageModel
         ? modelConfig.falImageModel
         : modelConfig.falModel!;
-      if (modelConfig.requiresImage && routedReferenceImages.length === 0 && modelConfig.textFallback) {
-        falModel = modelConfig.textFallback;
-        console.log(`No reference images for editing model, falling back to: ${falModel}`);
-      }
-
-      const reqBody: Record<string, unknown> = {
-        prompt,
-        num_images: 1,
-        output_format: "png",
-      };
 
       const imageSize = arToSize(ar, quality);
-      reqBody.image_size = imageSize;
-      reqBody.num_inference_steps = 28;
-      reqBody.guidance_scale = 3.5;
-      if (activeModel === "flux-uncensored-v2") reqBody.acceleration = "regular";
+      const reqBody: Record<string, unknown> = { prompt, num_images: 1 };
 
-      // Add LoRA if configured + disable safety checker for LoRA models
-      if (modelConfig.lora) {
-        reqBody.loras = [{ path: modelConfig.lora, scale: 1.0 }];
-        reqBody.enable_safety_checker = false;
-      }
-      if (activeModel !== "flux-uncensored-v2" && ar !== "Auto") reqBody.aspect_ratio = ar;
-
-      if (hasReferenceInput) {
-        if (falModel.includes("image-to-image")) {
-          reqBody.image_url = routedReferenceImages[0];
-          reqBody.strength = 0.85;
-        } else if (modelConfig.isMultiRef && routedReferenceImages.length > 1) {
-          reqBody.image_urls = routedReferenceImages;
+      // Per-family request shapes (based on fal.ai docs)
+      if (activeModel === "grok-imagine") {
+        reqBody.aspect_ratio = ar === "Auto" ? "1:1" : ar;
+        reqBody.resolution = quality === "1K" ? "1k" : "2k";
+      } else if (activeModel === "kling") {
+        reqBody.aspect_ratio = ["1:1","16:9","9:16","4:3","3:4","3:2","2:3","21:9"].includes(ar) ? ar : "1:1";
+        reqBody.resolution = quality === "1K" ? "1K" : "2K";
+        if (hasReferenceInput) reqBody.image_url = referenceImages[0];
+      } else if (activeModel === "seedream-4" || activeModel === "seedream-5-lite") {
+        reqBody.image_size = imageSize;
+        reqBody.max_images = 1;
+        if (hasReferenceInput) reqBody.image_urls = referenceImages.slice(0, 10);
+      } else if (activeModel === "wan") {
+        reqBody.image_size = imageSize;
+        if (hasReferenceInput) reqBody.image_url = referenceImages[0];
+      } else if (activeModel === "flux") {
+        reqBody.output_format = "png";
+        if (hasReferenceInput) {
+          reqBody.image_url = referenceImages[0];
         } else {
-          reqBody.image_url = routedReferenceImages[0];
+          reqBody.image_size = imageSize;
+          if (ar !== "Auto") reqBody.aspect_ratio = ar;
         }
+      } else {
+        reqBody.image_size = imageSize;
+        if (hasReferenceInput) reqBody.image_url = referenceImages[0];
       }
 
       const endpoint = `${FAL_BASE}/${falModel}`;
-      console.log(`Calling fal.ai: ${endpoint}, ar=${ar}, refs=${routedReferenceImages.length}`);
+      console.log(`Calling fal.ai: ${endpoint}, ar=${ar}, refs=${referenceImages.length}`);
 
       const submitResp = await fetch(endpoint, {
         method: "POST",
@@ -314,21 +322,23 @@ serve(async (req) => {
         });
       }
 
-      const outputImage = resultData?.images?.[0];
-      if (outputImage?.url) {
-        const imgResp = await fetch(outputImage.url);
+      const outputImage = resultData?.images?.[0] ?? resultData?.image;
+      const outUrl = typeof outputImage === "string" ? outputImage : outputImage?.url;
+      if (outUrl) {
+        const imgResp = await fetch(outUrl);
         if (imgResp.ok) {
           const buf = await imgResp.arrayBuffer();
           imageBase64 = toBase64DataUri(new Uint8Array(buf), imgResp.headers.get("content-type") || "image/png");
         } else {
-          imageUrl = outputImage.url;
+          imageUrl = outUrl;
         }
       } else {
-        return new Response(JSON.stringify({ error: "No image in fal.ai response" }), {
+        return new Response(JSON.stringify({ error: "No image in fal.ai response", details: JSON.stringify(resultData).slice(0, 500) }), {
           status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
+
 
     // ========== RUNWARE MODELS ==========
     if (modelConfig.type === "runware") {

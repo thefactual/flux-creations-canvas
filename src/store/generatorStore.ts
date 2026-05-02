@@ -43,36 +43,14 @@ type GeneratorState = {
 };
 
 export const MODELS = [
-  // Gemini (via apiyi)
-  { id: 'gemini-3.1-flash-image', name: 'Gemini 3.1 Flash Image', desc: 'Fast image gen & editing, pro-level quality', featured: true, badge: 'NEW' as const },
-  { id: 'gemini-3-pro-image', name: 'Gemini 3 Pro Image', desc: 'Next-gen image generation, highest quality', featured: true },
-  { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image', desc: 'Fast & stable, great value', featured: true },
-  // Flux Kontext (via fal.ai) — image editing with references
-  { id: 'flux-kontext-pro', name: 'Flux Kontext Pro', desc: 'Frontier image editing, single reference', featured: true },
-  { id: 'flux-kontext-max', name: 'Flux Kontext Max', desc: 'Best prompt adherence & typography', featured: true },
-  { id: 'flux-kontext-multi', name: 'Flux Kontext Multi', desc: 'Multi-image references for face swaps & merging', featured: true, badge: 'NEW' as const },
-  // Flux 2 (via fal.ai)
-  { id: 'flux-2-pro', name: 'Flux 2 Pro', desc: 'Maximum quality, exceptional photorealism', featured: true },
-  { id: 'flux-2-max', name: 'Flux 2 Max', desc: 'State-of-the-art generation & editing', featured: true },
-  { id: 'flux-2-flex', name: 'Flux 2 Flex', desc: 'Multi-reference editing, enhanced text rendering', featured: false },
-  { id: 'flux-2-dev', name: 'Flux 2 Dev', desc: 'Fast Flux 2 editing, dev-friendly', featured: false },
-  // Flux 1 (via fal.ai) — text-to-image
-  { id: 'flux-schnell', name: 'Flux Schnell', desc: 'Ultra-fast generation, open source', featured: false },
-  { id: 'flux-uncensored-v2', name: 'Flux Uncensored V2', desc: 'Unrestricted Flux Dev with uncensored LoRA', featured: true, badge: 'NEW' as const },
-  { id: 'flux-dev', name: 'Flux 1 Dev', desc: 'High quality open source, 12B params', featured: false },
-  { id: 'flux-pro-v1.1', name: 'Flux Pro 1.1', desc: 'Production quality, top Elo score', featured: false },
-  // Other fal.ai models
-  { id: 'recraft-v3', name: 'Recraft V3', desc: 'Best text rendering & vector art', featured: false },
-  { id: 'ideogram-v3', name: 'Ideogram V3', desc: 'Marketing materials, logos with text', featured: false },
-  // Runware Flux models (no content filter)
-  { id: 'rw-flux-1-dev', name: 'RW Flux 1 Dev', desc: 'Flux 1 Dev via Runware, no content filter', featured: true, badge: 'NEW' as const },
-  { id: 'rw-flux-1-schnell', name: 'RW Flux 1 Schnell', desc: 'Ultra-fast Flux via Runware', featured: false },
-  { id: 'rw-flux-2-pro', name: 'RW Flux 2 Pro', desc: 'Flux 2 Pro via Runware, unrestricted', featured: true },
-  { id: 'rw-flux-2-flex', name: 'RW Flux 2 Flex', desc: 'Flux 2 Flex via Runware, unrestricted', featured: false },
-  { id: 'rw-flux-2-dev', name: 'RW Flux 2 Dev', desc: 'Flux 2 Dev via Runware, unrestricted', featured: false },
-  { id: 'rw-flux-1.1-pro', name: 'RW Flux 1.1 Pro', desc: 'Flux 1.1 Pro via Runware', featured: false },
-  { id: 'rw-flux-1.1-pro-ultra', name: 'RW Flux 1.1 Pro Ultra', desc: 'Highest quality Flux 1.1 via Runware', featured: false },
-  { id: 'rw-flux-kontext-dev', name: 'RW Flux Kontext Dev', desc: 'Flux Kontext via Runware, unrestricted editing', featured: true },
+  { id: 'nano-banana-pro', name: 'Nano Banana Pro', desc: "Google's flagship generation model", featured: true },
+  { id: 'nano-banana-2', name: 'Nano Banana 2', desc: 'Pro quality at Flash speed', featured: true, badge: 'NEW' as const },
+  { id: 'seedream-4', name: 'Seedream 4.0', desc: "ByteDance's next-gen 4K image model", featured: true },
+  { id: 'seedream-5-lite', name: 'Seedream 5.0 Lite', desc: 'Intelligent visual reasoning', featured: true },
+  { id: 'grok-imagine', name: 'Grok Imagine', desc: "xAI's highly aesthetic image generation", featured: true },
+  { id: 'kling', name: 'Kling Image V3', desc: 'Latest Kling image model with face control', featured: true },
+  { id: 'flux', name: 'Flux 2 Pro', desc: 'State-of-the-art Flux generation & editing', featured: true },
+  { id: 'wan', name: 'Wan 2.2', desc: 'Photorealistic high-resolution generation', featured: true },
 ];
 
 export const ASPECT_RATIOS = [
@@ -209,7 +187,11 @@ async function saveToDb(img: GeneratedImage, storageUrl: string) {
 export const useGeneratorStore = create<GeneratorState>()((set, get) => ({
   prompt: localStorage.getItem('gen-last-prompt') || '',
   referenceImages: loadPersistedReferenceImages(),
-  model: (localStorage.getItem('gen-last-model') as string) || 'gemini-3.1-flash-image',
+  model: (() => {
+    const stored = localStorage.getItem('gen-last-model');
+    const valid = ['nano-banana-pro','nano-banana-2','seedream-4','seedream-5-lite','grok-imagine','kling','flux','wan'];
+    return stored && valid.includes(stored) ? stored : 'nano-banana-pro';
+  })(),
   quality: (localStorage.getItem('gen-last-quality') as string) || '2K',
   aspectRatio: (localStorage.getItem('gen-last-ar') as string) || '1:1',
   quantity: 4,
