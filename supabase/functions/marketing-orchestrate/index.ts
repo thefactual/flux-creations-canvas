@@ -452,12 +452,21 @@ Deno.serve(async (req) => {
           })
           .eq('id', generationId);
 
+        let keyframeUrl: string | null = null;
+        if (productId && avatarId) {
+          const keyframeRes = await invokeFn('marketing-generate-keyframe', { generationId });
+          if (keyframeRes.ok && keyframeRes.json?.keyframeUrl) {
+            keyframeUrl = String(keyframeRes.json.keyframeUrl);
+          }
+        }
+
         // 4e) Submit to the video function (still synchronous from its own POV
         // but we're already in the background).
         const vidRes = await invokeFn('marketing-generate-video', {
           reuseGenerationId: generationId,
           prompt: finalPrompt,
           image_urls: refs,
+          keyframe_url: keyframeUrl,
           aspect: ratio,
           duration_seconds: duration_seconds_final,
           resolution,
