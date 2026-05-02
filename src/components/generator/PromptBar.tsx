@@ -21,7 +21,7 @@ export function PromptBar() {
   const [qualityOpen, setQualityOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
   const [dragging, setDragging] = useState(false);
-  const [freeGens, setFreeGens] = useState(false);
+  
   const [previewImg, setPreviewImg] = useState<string | null>(null);
 
   const selectedModel = MODELS.find((m) => m.id === model);
