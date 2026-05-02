@@ -144,6 +144,17 @@ function canonicalReferenceKey(url: string) {
   }
 }
 
+function isAvatarStorageReference(url: string) {
+  try {
+    const parsed = new URL(url);
+    const wrapped = parsed.hostname === 'wsrv.nl' ? parsed.searchParams.get('url') : null;
+    const target = wrapped ? new URL(wrapped) : parsed;
+    return target.pathname.includes('/storage/v1/object/sign/ms-avatars/') || target.pathname.includes('/storage/v1/object/public/ms-avatars/');
+  } catch {
+    return /ms-avatars/i.test(url);
+  }
+}
+
 function avatarIdentityCropUrl(url: string) {
   return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=640&h=640&fit=cover&a=top&output=jpg`;
 }
@@ -201,7 +212,10 @@ async function gatherFreshReferenceUrls(admin: any, opts: {
 
   // Keep the core product/avatar refs first and preserve truly extra prompt refs,
   // but dedupe re-signed storage URLs so retries don't send raw duplicate avatars.
-  return uniqueValidUrls([...refs, ...(opts.fallbackUrls ?? [])], opts.maxReferenceImages ?? 9);
+  const fallbackUrls = (opts.fallbackUrls ?? []).filter((url) => {
+    return !(hasComposedKeyframe && typeof url === 'string' && isAvatarStorageReference(url));
+  });
+  return uniqueValidUrls([...refs, ...fallbackUrls], opts.maxReferenceImages ?? 9);
 }
 
 async function uploadAtlasMedia(url: string, index: number, kind: 'image' | 'audio') {
