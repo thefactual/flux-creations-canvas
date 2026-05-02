@@ -164,7 +164,7 @@ export function PromptBar() {
             <PopoverContent
               align="start"
               sideOffset={10}
-              className="w-72 p-0 rounded-2xl border border-white/10 bg-[hsl(0_0%_3%)]/97 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.85)] overflow-hidden"
+              className="w-72 p-0 rounded-2xl ms-glass shadow-[0_24px_60px_-20px_rgba(0,0,0,0.85)] overflow-hidden"
             >
               <ModelDropdownContent
                 model={model}
@@ -187,7 +187,7 @@ export function PromptBar() {
             <PopoverContent
               align="start"
               sideOffset={10}
-              className="w-[280px] p-3 rounded-2xl border border-white/10 bg-[hsl(0_0%_8%)]/95 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]"
+              className="w-[280px] p-3 rounded-2xl ms-glass shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]"
             >
               <div className="text-[11px] font-semibold tracking-[0.18em] text-white/50 uppercase px-2 pt-1 pb-2">
                 Aspect Ratio
@@ -224,7 +224,7 @@ export function PromptBar() {
             <PopoverContent
               align="start"
               sideOffset={10}
-              className="w-44 p-1.5 rounded-2xl border border-white/10 bg-[hsl(0_0%_8%)]/95 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]"
+              className="w-44 p-1.5 rounded-2xl ms-glass shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]"
             >
               <div className="px-2.5 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-white/50 uppercase">Quality</div>
               {QUALITIES.map((q) => (
