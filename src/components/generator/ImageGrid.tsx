@@ -1,5 +1,5 @@
 import { useGeneratorStore } from '@/store/generatorStore';
-import { useLayoutStore, ZOOM_TILE_WIDTHS } from '@/store/layoutStore';
+import { useLayoutStore, ZOOM_ROW_HEIGHTS } from '@/store/layoutStore';
 import { AlertCircle, Eye, RefreshCw, Trash2, Loader2, Download, Link2, Heart, MoreHorizontal, Maximize2 } from 'lucide-react';
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 
@@ -40,32 +40,57 @@ export function ImageGrid() {
   }, []);
 
   const gap = 8;
-  const targetWidth = ZOOM_TILE_WIDTHS[zoom];
-  const columnCount = Math.max(1, Math.min(8, Math.round(containerWidth / targetWidth) || 1));
-  const colWidth = containerWidth > 0
-    ? (containerWidth - gap * (columnCount - 1)) / columnCount
-    : 0;
+  const targetRowHeight = ZOOM_ROW_HEIGHTS[zoom];
 
-  // Order is preserved (newest first as supplied by store). We assign each
-  // item to the currently shortest column so latest generations always land
-  // on the top row instead of all stacking in the leftmost column.
+  // Justified rows layout (à la Higgsfield / Google Images / Flickr):
+  // every row has the SAME height; widths vary by aspect ratio so each row
+  // exactly fills the container width. Order is preserved (newest first).
   const layout = useMemo(() => {
-    if (!colWidth) return { items: [] as Array<{ id: string; left: number; top: number; height: number }>, totalHeight: 0 };
-    const heights = new Array(columnCount).fill(0) as number[];
-    const items = images.map((img) => {
-      const ratio = parseRatio(img.aspectRatio);
-      const h = colWidth / ratio;
-      // pick shortest column
-      let col = 0;
-      for (let i = 1; i < columnCount; i++) if (heights[i] < heights[col]) col = i;
-      const top = heights[col];
-      const left = col * (colWidth + gap);
-      heights[col] = top + h + gap;
-      return { id: img.id, left, top, height: h };
-    });
-    const totalHeight = Math.max(0, ...heights) - gap;
+    type Item = { id: string; left: number; top: number; width: number; height: number };
+    if (!containerWidth) return { items: [] as Item[], totalHeight: 0 };
+
+    const items: Item[] = [];
+    let top = 0;
+    let rowStart = 0;
+
+    const flushRow = (endExclusive: number, isLast: boolean) => {
+      const rowImgs = images.slice(rowStart, endExclusive);
+      if (rowImgs.length === 0) return;
+      const ratios = rowImgs.map((i) => parseRatio(i.aspectRatio));
+      const sumRatio = ratios.reduce((a, b) => a + b, 0);
+      const totalGap = gap * (rowImgs.length - 1);
+      // Height that makes the row exactly fill the container width.
+      let rowHeight = (containerWidth - totalGap) / sumRatio;
+      // Don't stretch the last partial row beyond the target height.
+      if (isLast && rowHeight > targetRowHeight * 1.4) {
+        rowHeight = targetRowHeight;
+      }
+      let left = 0;
+      rowImgs.forEach((img, idx) => {
+        const w = ratios[idx] * rowHeight;
+        items.push({ id: img.id, left, top, width: w, height: rowHeight });
+        left += w + gap;
+      });
+      top += rowHeight + gap;
+      rowStart = endExclusive;
+    };
+
+    let accRatio = 0;
+    for (let i = 0; i < images.length; i++) {
+      accRatio += parseRatio(images[i].aspectRatio);
+      // Projected row height if we close the row here.
+      const totalGap = gap * (i - rowStart);
+      const projected = (containerWidth - totalGap) / accRatio;
+      if (projected <= targetRowHeight) {
+        flushRow(i + 1, false);
+        accRatio = 0;
+      }
+    }
+    if (rowStart < images.length) flushRow(images.length, true);
+
+    const totalHeight = Math.max(0, top - gap);
     return { items, totalHeight };
-  }, [images, colWidth, columnCount]);
+  }, [images, containerWidth, targetRowHeight]);
 
   if (images.length === 0) {
     return (
@@ -86,7 +111,7 @@ export function ImageGrid() {
           <div
             key={img.id}
             className="absolute"
-            style={{ left: pos.left, top: pos.top, width: colWidth, height: pos.height }}
+            style={{ left: pos.left, top: pos.top, width: pos.width, height: pos.height }}
           >
             <ImageCard image={img} />
           </div>

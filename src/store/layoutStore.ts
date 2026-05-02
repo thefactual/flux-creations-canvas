@@ -24,6 +24,9 @@ export const useLayoutStore = create<LayoutState>()((set) => ({
   },
 }));
 
-// Approx target tile width (px) per zoom level — JS masonry uses this with
-// container width to compute the column count responsively.
+// Legacy: target tile width (px) per zoom level (kept for back-compat).
 export const ZOOM_TILE_WIDTHS: number[] = [160, 200, 260, 340, 460];
+
+// Target ROW HEIGHT (px) per zoom level for justified row layout.
+// Smaller zoom = shorter rows = more images per row.
+export const ZOOM_ROW_HEIGHTS: number[] = [140, 190, 250, 320, 420];
