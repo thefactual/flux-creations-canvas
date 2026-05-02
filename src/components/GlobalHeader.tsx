@@ -23,7 +23,7 @@ export function GlobalHeader() {
   if (location.pathname.startsWith('/marketingstudio')) return null;
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-[hsl(0_0%_4%)]/70 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-[hsl(0_0%_4%)]/55">
+    <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl">
       <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
         {/* Left: logo + nav */}
         <div className="flex items-center gap-6 min-w-0">
