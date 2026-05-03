@@ -8,6 +8,14 @@ import { AlertCircle, Eye, RefreshCw, Trash2, Loader2, Download, Link2, Heart, M
 import { useGridSelectionStore } from '@/store/gridSelectionStore';
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { create } from 'zustand';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Local UI store for the All / Liked tab on the /create grid.
 type GridTab = 'all' | 'liked';
@@ -21,14 +29,6 @@ type MediaItem =
   | ({ kind: 'image' } & GeneratedImage)
   | ({ kind: 'video' } & GeneratedVideo);
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 // Build a resized variant of a Supabase Storage public URL using the
 // `/render/image/` transform endpoint. Falls back to original on non-Supabase URLs.
