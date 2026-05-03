@@ -8,6 +8,7 @@ import { PromptNavBar } from '@/components/PromptNavBar';
 import { CreateSidebar } from '@/components/generator/CreateSidebar';
 import { ImageGrid } from '@/components/generator/ImageGrid';
 import { ImageDetailModal } from '@/components/generator/ImageDetailModal';
+import { VideoDetailModal } from '@/components/video/VideoDetailModal';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useGeneratorStore } from '@/store/generatorStore';
 import { useVideoStore } from '@/store/videoStore';
