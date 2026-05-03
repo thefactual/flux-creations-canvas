@@ -47,33 +47,35 @@ export function GlobalHeader() {
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV_ITEMS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `relative px-4 py-2 rounded-2xl text-[15px] font-medium transition-colors ${
-                    isActive
-                      ? 'text-foreground bg-muted/60'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                  }`
-                }
-              >
-                {item.label}
-                {item.badge && (
-                  <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-lime-300 text-black align-middle">
-                    {item.badge}
-                  </span>
-                )}
-              </NavLink>
-            ))}
-          </nav>
+          {!location.pathname.startsWith('/create') && (
+            <nav className="hidden md:flex items-center gap-1">
+              {NAV_ITEMS.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `relative px-4 py-2 rounded-2xl text-[15px] font-medium transition-colors ${
+                      isActive
+                        ? 'text-foreground bg-muted/60'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                    }`
+                  }
+                >
+                  {item.label}
+                  {item.badge && (
+                    <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-lime-300 text-black align-middle">
+                      {item.badge}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+          )}
         </div>
 
         {/* Right: auth / actions */}
         <div className="flex items-center gap-2">
-          {location.pathname.startsWith('/image') && <LayoutZoomSlider />}
+          {location.pathname.startsWith('/create') && <LayoutZoomSlider />}
           {!isLoggedIn ? (
             <>
               <button className="hidden sm:flex items-center gap-1.5 px-4 h-10 rounded-2xl text-sm font-semibold text-foreground hover:bg-muted/50 relative transition-colors">
