@@ -152,23 +152,8 @@ export function ImageGrid() {
     return { items, totalHeight };
   }, [images, containerWidth, targetRowHeight]);
 
-  const activeCount = images.filter((i) => i.status === 'generating').length;
-
   return (
     <div className="w-full">
-      {activeCount > 0 && (
-        <div className="mb-3 rounded-2xl ms-glass p-3 flex items-center gap-3 animate-fade-in">
-          <Loader2 className="w-4 h-4 animate-spin text-foreground" />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-foreground">
-              {activeCount} generation{activeCount > 1 ? 's' : ''} in progress
-            </div>
-            <div className="text-xs text-muted-foreground truncate">
-              Rendering…
-            </div>
-          </div>
-        </div>
-      )}
 
       <div ref={containerRef} className="relative w-full" style={{ height: images.length === 0 ? undefined : layout.totalHeight, minHeight: images.length === 0 ? '60vh' : undefined }}>
       {images.length === 0 && (
