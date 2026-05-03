@@ -132,6 +132,10 @@ export const MODEL_DURATIONS: Record<string, string[]> = {
 // Per-model resolution choices.
 // Empty list = model has no resolution param (don't render the chip).
 export const MODEL_RESOLUTIONS: Record<string, string[]> = {
+  'kling-v3-pro':         ['4K'],
+  'kling-v2.6-pro':       ['1080p'],
+  'kling-v2.5-turbo-pro': ['1080p'],
+  'minimax-video':        ['720p'],
   'pixverse-v6':          ['360p','540p','720p','1080p'],
   'veo-3.1':              ['720p','1080p'],
   'veo-3.1-fast':         ['720p','1080p'],
@@ -145,7 +149,7 @@ export const MODEL_RESOLUTIONS: Record<string, string[]> = {
   'rw-veo-3.1-fast':      ['720p','1080p'],
   'rw-sora-2':            ['720p'],
   'ev-kling-v3-motion':   ['720p','1080p'],
-  // kling fal endpoints, minimax, ltx → no resolution control (use defaults / video_size).
+  'ltx-2-19b':            ['1080p'],
 };
 
 export function getDurationsForModel(model: string): string[] {
@@ -410,6 +414,7 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
       mode,
       aspectRatio,
       duration,
+      resolution,
       status: 'generating',
       createdAt: Date.now(),
       characterOrientation: mode === 'motion-control' ? characterOrientation : undefined,
@@ -443,6 +448,7 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
       mode: video.mode,
       aspectRatio: video.aspectRatio,
       duration: video.duration,
+      resolution: video.resolution ?? resolution,
       characterOrientation: video.characterOrientation ?? 'video',
     }, id, get, set);
   },
