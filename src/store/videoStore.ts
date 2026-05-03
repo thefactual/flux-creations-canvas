@@ -132,8 +132,9 @@ type VideoState = {
   retryVideo: (id: string) => void;
   deleteVideo: (id: string) => void;
   toggleLike: (id: string) => void;
-  loadHistory: () => Promise<void>;
+  loadHistory: (projectId?: string | null) => Promise<void>;
   _historyLoaded: boolean;
+  _loadedProjects?: Set<string>;
 };
 
 async function saveVideoToDb(video: GeneratedVideo) {
