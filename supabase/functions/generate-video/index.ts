@@ -169,6 +169,8 @@ async function handlePoll(body: Record<string, unknown>) {
   }
 
   // ---- RUNWARE poll ----
+  // Per Runware docs: poll async tasks via the `getResponse` task type.
+  // https://runware.ai/docs/platform/task-polling
   if (provider === "runware") {
     const RUNWARE_API_KEY = Deno.env.get("RUNWARE_API_KEY");
     if (!RUNWARE_API_KEY) return jsonResp({ error: "RUNWARE_API_KEY not configured" }, 500);
@@ -176,16 +178,27 @@ async function handlePoll(body: Record<string, unknown>) {
     const pollResp = await fetch(RUNWARE_BASE, {
       method: "POST",
       headers: { Authorization: `Bearer ${RUNWARE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify([{ taskType: "videoInference", taskUUID: taskId }]),
+      body: JSON.stringify([{ taskType: "getResponse", taskUUID: taskId }]),
     });
     if (!pollResp.ok) {
       const t = await pollResp.text();
-      return jsonResp({ status: "processing" }); // Runware may return errors during processing
+      console.error("Runware poll error:", pollResp.status, t);
+      // Don't fail the whole job on a transient poll error — keep polling.
+      return jsonResp({ status: "processing" });
     }
     const pollData = await pollResp.json();
-    const result = pollData?.data?.find((d: any) => d.videoURL);
-    if (result?.videoURL) {
-      return jsonResp({ status: "complete", videoUrl: result.videoURL });
+    // Look at both `data` (in-progress + completed) and `errors`
+    const completed = pollData?.data?.find((d: any) => d.status === "success" && d.videoURL);
+    if (completed?.videoURL) {
+      return jsonResp({ status: "complete", videoUrl: completed.videoURL });
+    }
+    const errored = pollData?.errors?.find?.((e: any) => e.taskUUID === taskId);
+    if (errored) {
+      return jsonResp({ status: "failed", error: errored.message || errored.code || "Runware task failed" });
+    }
+    const errorRow = pollData?.data?.find((d: any) => d.status === "error");
+    if (errorRow) {
+      return jsonResp({ status: "failed", error: errorRow.message || "Runware task failed" });
     }
     return jsonResp({ status: "processing" });
   }
@@ -338,7 +351,9 @@ async function handleSubmit(body: Record<string, unknown>) {
         input.duration = String(durNum);
       }
 
-      if (durFormat !== "ltx-frames" && durFormat !== "minimax-none") {
+      // aspect_ratio: only applies when no image is provided.
+      // Veo i2v ignores aspect_ratio (derived from image); Kling i2v accepts it but the start image already constrains it.
+      if (durFormat !== "ltx-frames" && durFormat !== "minimax-none" && !isImageMode) {
         input.aspect_ratio = aspectRatio;
       }
 
@@ -348,9 +363,11 @@ async function handleSubmit(body: Record<string, unknown>) {
 
       if (isImageMode) {
         input[imgField] = referenceImages[0];
-        if (referenceImages.length > 1) {
-          const endField = imgField === "start_image_url" ? "end_image_url" : "tail_image_url";
-          input[endField] = referenceImages[1];
+        // Only Kling v3/2.6 i2v support a paired end frame (end_image_url).
+        // Veo / PixVerse / Hailuo / LTX do not — silently drop the second image.
+        const supportsEndFrame = model.startsWith("kling-v3") || model.startsWith("kling-v2.6");
+        if (referenceImages.length > 1 && supportsEndFrame && imgField === "start_image_url") {
+          input.end_image_url = referenceImages[1];
         }
       }
     }
@@ -416,16 +433,20 @@ async function handleSubmit(body: Record<string, unknown>) {
     }
 
     const taskUUID = crypto.randomUUID();
+    const isMotionControl = mode === "motion-control";
     const task: Record<string, unknown> = {
       taskType: "videoInference",
       taskUUID,
       model: config.runwareModel,
-      positivePrompt: prompt,
+      positivePrompt: prompt || "video",
       duration: parseInt(duration) || 5,
       width: rwWidth,
       height: rwHeight,
       outputFormat: "MP4",
       outputType: "URL",
+      // Async delivery so we can poll via getResponse without holding the connection.
+      // https://runware.ai/docs/platform/task-polling
+      deliveryMethod: "async",
     };
 
     if (isVideoEdit) {
@@ -433,11 +454,20 @@ async function handleSubmit(body: Record<string, unknown>) {
       if (!sourceVideo) return jsonResp({ error: "Video edit requires a reference video in slot 0" }, 400);
       if (!prompt) return jsonResp({ error: "Video edit requires a text prompt" }, 400);
       task.inputs = { referenceVideos: [sourceVideo] };
+    } else if (isMotionControl) {
+      // Motion control on Runware (e.g. Seedance): pass motion video + character image
+      const motionVideo = referenceImages[0];
+      const characterImage = referenceImages[1];
+      if (!motionVideo || !characterImage) {
+        return jsonResp({ error: "Motion control requires a motion video (slot 0) and a character image (slot 1)" }, 400);
+      }
+      task.inputs = { referenceVideos: [motionVideo] };
+      task.frameImages = [{ imageURL: characterImage }];
     } else if (referenceImages.length > 0 && mode === "image-to-video") {
-      task.frameImages = referenceImages.map((url: string) => ({ imageURL: url }));
+      task.frameImages = referenceImages.filter(Boolean).map((url: string) => ({ imageURL: url }));
     }
 
-    console.log(`Calling Runware video: model=${config.runwareModel}`);
+    console.log(`Calling Runware video: model=${config.runwareModel}, async`);
 
     const response = await fetch(RUNWARE_BASE, {
       method: "POST",
@@ -452,16 +482,21 @@ async function handleSubmit(body: Record<string, unknown>) {
     }
 
     const resData = await response.json();
-    const videoResult = resData?.data?.find((d: any) => d.taskType === "videoInference");
-    const videoUrl = videoResult?.videoURL || videoResult?.outputURL;
+    // Async submit ack: data[0] echoes our taskUUID with status "processing"
+    const ackRow = resData?.data?.find((d: any) => d.taskUUID === taskUUID) ?? resData?.data?.[0];
+    const completed = resData?.data?.find((d: any) => d.videoURL);
 
-    // If video came immediately
-    if (videoUrl) {
-      return jsonResp({ submitted: true, provider: "runware", taskId: taskUUID, status: "complete", videoUrl });
+    if (completed?.videoURL) {
+      return jsonResp({ submitted: true, provider: "runware", taskId: taskUUID, status: "complete", videoUrl: completed.videoURL });
     }
 
-    console.log(`Runware task submitted: ${taskUUID}`);
-    return jsonResp({ submitted: true, provider: "runware", taskId: videoResult?.taskUUID || taskUUID });
+    const erroredAck = resData?.errors?.[0];
+    if (erroredAck) {
+      return jsonResp({ error: `Runware: ${erroredAck.message || erroredAck.code || "submit failed"}` }, 502);
+    }
+
+    console.log(`Runware task submitted (async): ${taskUUID}`);
+    return jsonResp({ submitted: true, provider: "runware", taskId: ackRow?.taskUUID || taskUUID });
   }
 
   return jsonResp({ error: "Unknown provider type" }, 500);

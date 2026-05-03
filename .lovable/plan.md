@@ -1,133 +1,160 @@
-# Backend Hardening — Generation Pipelines + /create Data Layer
+# Bulletproof provider routing — full backend rewire
 
-Goal: every generation mode (image, video, motion-control, marketing/Seedance) lands a card in the active `/create/:slug` feed, never gets stuck, and the data layer is ready for 1M users (proper indexes + pagination + project scoping). Auth is intentionally **out of scope** for this pass.
+Goal: every option in the prompt nav bar (image, video Create/Edit/Motion, marketing) reaches the right provider, with verified endpoints, normalized payloads, deterministic polling, and a multi-tier fallback chain. No silent failures.
 
-## 1. Map of the current backend
+---
 
-```text
-                          ┌──────────────── client ─────────────────┐
-/create/:slug  ──▶  generatorStore  ──▶  generate-image  ──▶ apiyi/Gemini ─┐
-                       videoStore   ──▶  generate-video  ──▶ fal queue    │
-                                                              Runware     ├─▶ storage URL
-                                                              Evolink     │
-                marketing PromptBar ─▶ marketing-orchestrate              │
-                                          │  marketing-generate-script    │
-                                          │  marketing-generate-video ──▶ AtlasCloud / fal Seedance
-                                          ▼                                │
-                                       ms_generations row ◀────────────────┘
-                       ImageGrid  ◀── generations / video_generations / ms_generations
-                                            (merged by createProjectId)
+## 1. Source-of-truth model registry
+
+Create `supabase/functions/_shared/modelRegistry.ts` so the UI label, the provider routing, and the fallback chain live in **one** place (today they're split across `generatorStore.ts`, `videoStore.ts`, and the two edge functions, which is why slugs drift).
+
+```ts
+export type ProviderId = 'fal' | 'runware' | 'evolink' | 'apiyi' | 'atlas';
+export type ImageEntry = {
+  id: string;                 // UI key e.g. "nano-banana-pro"
+  label: string;              // "Nano Banana Pro"
+  primary:   { provider: ProviderId; model: string; edit?: string };
+  fallbacks: { provider: ProviderId; model: string; edit?: string }[];
+  maxRefs: number;
+};
+export type VideoEntry = {
+  id: string;
+  label: string;
+  modes: ('text-to-video'|'image-to-video'|'motion-control'|'video-edit')[];
+  primary:   { provider: ProviderId; t2v?: string; i2v?: string; motion?: string; edit?: string; durationFormat: ... };
+  fallbacks: { ... }[];
+  startEndFrames?: boolean;
+};
 ```
 
-Tables today (no indexes, all RLS = `using true`):
-- `create_projects` — project rows; sidebar uses `slug`.
-- `generations` — image rows. **Has `project_id`** but column is nullable.
-- `video_generations` — video rows. **Missing `project_id`** entirely.
-- `ms_generations` — marketing rows. Has `create_project_id` (added last loop).
-- `ms_products`, `ms_product_images`, `ms_avatars` — marketing inputs.
+Both edge functions and both Zustand stores import from this file via a thin `// @ts-ignore deno` re-export so the client gets the labels and the server gets the routing.
 
-## 2. Fixes per mode
+---
 
-### 2a. Image (`generate-image` + `generatorStore`)
-- `generations.image_url` is set, but `project_id` is whatever `useCreateProjectsStore.getState().activeProjectId` was at the time — confirm `saveToDb` actually receives the active project id from the URL slug, not from a stale store value. Pass `projectId` explicitly through `generate()` instead of reading it from a global getter.
-- Verify each fal model payload against fal docs once more (Seedream 4 edit, Flux 2 Pro edit, Kling Image V3, Wan 2.2, Grok Imagine, nano banana via apiyi). The current code mostly matches; the known gap is that `imageBase64` is ~5 MB on hi-res, which inflates DB rows and edge response. Switch to "always upload to `generated-images` bucket → store public URL only", drop base64 from the response (the function already uploads in `uploadToStorage`, the wire payload just needs trimming).
-- Add a `width` / `height` columns persistence so the grid can size cards before the image loads.
+## 2. Verified endpoint matrix (after re-reading docs)
 
-### 2b. Video (`generate-video` + `videoStore`)
-- Add the missing `project_id` column on `video_generations` and pipe it from the client like images do, so videos appear in the right project feed (currently they show in every project).
-- Polling lives in the browser and times out after 120 × 5s = 10 minutes. For long fal queue jobs (Veo, Kling Pro) that's borderline. Move polling into a Deno `EdgeRuntime.waitUntil` background loop inside `generate-video` itself (same pattern marketing-orchestrate uses) and write the final `video_url` to `video_generations`. The store then just polls the DB row, not the provider.
-- Re-validate per-provider payloads:
-  - **fal queue**: confirm `start_image_url`/`image_url` field used per family matches fal docs (Kling v3 vs v2.5 vs Veo 3.1 differ).
-  - **Runware**: `frameImages` for image-to-video and `referenceVideos` for edit; videoInference response now has both `videoURL` and `outputURL`.
-  - **Evolink**: motion-control submit shape (`image_urls` + `video_urls` + `model_params.character_orientation`) matches docs; verify `quality` accepts `720p|1080p`.
-- Persist `reference_images` even when they're long URLs so retry from history works (currently retry uses in-memory state only).
+### Images
+| UI label | Primary | Fallback 1 | Fallback 2 |
+|---|---|---|---|
+| Nano Banana Pro | apiyi `gemini-3-pro-image-preview` | fal `fal-ai/bytedance/seedream/v4/text-to-image` | runware `google:4@1` |
+| Nano Banana 2 | apiyi `gemini-3.1-flash-image-preview` | fal seedream-4 | runware `google:4@2` |
+| Seedream 4.0 | fal `fal-ai/bytedance/seedream/v4/text-to-image` (+ `/edit`) | runware `bytedance:seedream@4` | — |
+| Seedream 5.0 Lite | fal `fal-ai/bytedance/seedream/v5/lite/text-to-image` | fal seedream-4 | — |
+| Grok Imagine | fal `fal-ai/grok-imagine` | runware `xai:grok-imagine@image` | — |
+| Kling Image V3 | fal `fal-ai/kling/v2.1/standard/text-to-image` | runware `klingai:image@1` | — |
+| Flux 2 Pro | fal `fal-ai/flux-pro/v1.1-ultra` (+ `fal-ai/flux-pro/kontext` for edit) | runware `bfl:2@2` | — |
+| Wan 2.2 | fal `fal-ai/wan/v2.2-a14b/text-to-image` | runware `wan:2.2@a14b` | — |
 
-### 2c. Motion control (subset of 2b)
-- Same backend (`ev-kling-v3-motion` via Evolink, fal Kling motion endpoints). The two real bugs: (a) the client allows submitting without checking that slot 0 is a video MIME (sometimes users drop an image there), (b) Evolink `responseUrl` is not stored, so a refresh mid-job loses recoverability. Add both checks + store `task_id`+`provider` in `video_generations` (already a column).
+### Video — Create
+| Label | Primary | Fallback |
+|---|---|---|
+| Seedance 2.0 | runware `bytedance:seedance@1.5-pro` | fal `fal-ai/bytedance/seedance/v1/pro/text-to-video` |
+| Kling 3.0 | fal `fal-ai/kling-video/v3/pro/text-to-video` & `image-to-video` (+ `tail_image_url` for end frame) | runware `klingai:6@1` |
+| Google Veo 3.1 | fal `fal-ai/veo3.1` (drop `aspect_ratio` when image is provided) | runware `google:3@2` |
+| Veo 3.1 Fast | fal `fal-ai/veo3.1/fast` | runware `google:3@3` |
+| Veo 3.1 Lite | fal `fal-ai/veo3.1/lite` | — |
+| Sora 2 | runware `openai:3@1` | — |
+| Runway Gen-4.5 | runware `runwayml:gen@4.5` | — |
+| PixVerse V6 | fal `fal-ai/pixverse/v6/...` | — |
+| Hailuo (MiniMax) | fal `fal-ai/minimax/video-01-live/...` | — |
+| LTX-2 | fal `fal-ai/ltx-2-19b/...` | — |
+| Grok Imagine | runware `xai:grok-imagine@video` | — |
 
-### 2d. Marketing (`marketing-orchestrate` + `marketing-generate-video`)
-- Pipeline already runs in background (`EdgeRuntime.waitUntil`) and writes to `ms_generations`. Two missing pieces:
-  1. `marketingFeedStore` polls every 4s for the active project; that's fine, but the store currently never stops polling when the user navigates away. Add cleanup in the consumer hook (`stopPolling` already exists, just call it on unmount).
-  2. Seedance moderation rejects raw avatar storage URLs — already documented in memory as `atlas-avatar-asset-registration`. Confirm `marketing-generate-video` registers avatars via `POST /api/v1/sd/assets` and uses `asset://` ids. (This needs to be re-read against the file; if regressed, restore.)
-- Make sure `create_project_id` is honoured end-to-end so a marketing card appears in the same `/create/:slug` it was generated from (already wired in last loop, verify after image/video changes don't break the merger).
+### Video — Edit
+- Kling 3.0 Omni Edit → fal `fal-ai/kling-video/v1/pro/effects` (verified slug)
+- Kling O1 Video Edit → fal `fal-ai/kling-video/v1.6/pro/elements`
+- Grok Imagine Edit → runware `xai:grok-imagine@video`
 
-## 3. Unified /create feed
+### Video — Motion Control
+- Default = ev-kling-v3-motion (Evolink) → fallback fal `fal-ai/kling-video/v3/pro/motion-control`
+- Kling 2.6 Motion Pro / Std → fal slugs as today
+- Seedance Motion → runware with `frameImages` + `referenceVideos`
 
-`ImageGrid.tsx` already merges three sources. Two correctness gaps:
-- It currently filters images by `projectId === activeProjectId` but videos by no project at all (because the column doesn't exist yet). Add the column + filter.
-- Marketing rows are fetched via `useMarketingFeedStore` keyed by `createProjectId`; images/videos use stores that hold ALL items in memory and filter client-side. With 1M users + thousands of gens per user this won't scale. Switch all three to "fetch only the active project's last 100 items", paginate older with `loadMore`.
+---
 
-## 4. Data layer for 1M users (foundations only)
+## 3. Edge function rewrite
 
-Single migration covering all tables:
+### `supabase/functions/generate-image/index.ts`
+- Accept `{prompt, refs, modelId, quality, aspectRatio}`.
+- Resolve `modelId` → registry entry → try `[primary, ...fallbacks]` in order.
+- Per-provider adapters: `callApiyi()`, `callFal()`, `callRunware()` — each returns `{url}` or throws a typed error (`ProviderError(kind: 'nsfw'|'rate'|'auth'|'badRequest'|'transient', message)`).
+- Only `nsfw` and explicit `auth` errors abort; `transient`/`badRequest` advance to next fallback.
+- Always return `{imageUrl}` (never base64) to avoid the 6 MB worker limit.
+
+### `supabase/functions/generate-video/index.ts`
+Major fixes:
+1. **Runware poll**: replace the broken re-submit loop with the documented poll task:
+   ```json
+   [{ "taskType": "getResponse", "taskUUID": "<id>" }]
+   ```
+   Read `data[0].videoURL` / `status`.
+2. **Runware motion-control**: handle `mode === 'motion-control'` for `rw-seedance-1.5-pro` — emit `frameImages: [{imageURL: characterImg}]` + `referenceVideos: [motionVideo]`.
+3. **Kling start+end frame**: switch end-frame field from `end_image_url` to `tail_image_url` for the Kling family. Veo/PixVerse keep `end_image_url`.
+4. **Veo image-to-video**: drop `aspect_ratio` when `image_url` set (Veo derives from image).
+5. **Edit endpoints**: replace stale Kling Omni/O1 edit slugs with verified `effects` / `elements`.
+6. **Submit fallback**: if primary submit returns 4xx/5xx, automatically try fallback provider before bubbling the error.
+7. **Background polling**: move polling out of the client into the edge function using `EdgeRuntime.waitUntil` + DB writes — client just subscribes via realtime on `video_generations`. This kills the 10-min client timeout problem and works at 1M users.
+8. **Realtime**: add `ALTER PUBLICATION supabase_realtime ADD TABLE public.video_generations;` so the grid updates without polling.
+
+### `supabase/functions/marketing-orchestrate/index.ts`
+- Keep AtlasCloud `asset://` registration for avatars (per memory rule).
+- Re-host product images from signed URLs to `ms-products` permanent path before submitting to fal Seedance (long signed URLs occasionally trip moderation).
+
+---
+
+## 4. Client store changes
+
+`src/store/videoStore.ts`
+- Drop the in-store polling loop entirely — just insert the row and subscribe to `video_generations` realtime updates.
+- Remove the 120 × 5s timeout.
+- Keep the optimistic placeholder in the grid.
+
+`src/store/generatorStore.ts`
+- No structural change; just ensure model IDs match the new registry (no UI text change).
+
+---
+
+## 5. Database migration
 
 ```sql
--- Project scoping
-ALTER TABLE public.video_generations ADD COLUMN IF NOT EXISTS project_id uuid;
-ALTER TABLE public.video_generations ADD COLUMN IF NOT EXISTS create_project_id uuid;
-ALTER TABLE public.generations       ADD COLUMN IF NOT EXISTS create_project_id uuid;
--- (ms_generations.create_project_id already exists)
+ALTER PUBLICATION supabase_realtime ADD TABLE public.video_generations;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.generations;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.ms_generations;
+ALTER TABLE public.video_generations REPLICA IDENTITY FULL;
+ALTER TABLE public.generations REPLICA IDENTITY FULL;
+ALTER TABLE public.ms_generations REPLICA IDENTITY FULL;
 
--- Hot-path indexes
-CREATE INDEX IF NOT EXISTS idx_generations_project_created
-  ON public.generations (create_project_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_video_generations_project_created
-  ON public.video_generations (create_project_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_ms_generations_project_created
-  ON public.ms_generations (create_project_id, created_at DESC);
-
--- Lookup indexes
-CREATE INDEX IF NOT EXISTS idx_create_projects_slug
-  ON public.create_projects (slug);
-CREATE INDEX IF NOT EXISTS idx_ms_generations_status_stage
-  ON public.ms_generations (status, stage)
-  WHERE status IN ('queued','generating','processing');
-
--- Cascade delete: deleting a project drops its generations
-ALTER TABLE public.generations
-  ADD CONSTRAINT generations_create_project_fk
-  FOREIGN KEY (create_project_id) REFERENCES public.create_projects(id) ON DELETE CASCADE NOT VALID;
-ALTER TABLE public.video_generations
-  ADD CONSTRAINT video_generations_create_project_fk
-  FOREIGN KEY (create_project_id) REFERENCES public.create_projects(id) ON DELETE CASCADE NOT VALID;
-ALTER TABLE public.ms_generations
-  ADD CONSTRAINT ms_generations_create_project_fk
-  FOREIGN KEY (create_project_id) REFERENCES public.create_projects(id) ON DELETE CASCADE NOT VALID;
+-- Track which provider actually served each request (for debugging fallbacks)
+ALTER TABLE public.generations        ADD COLUMN IF NOT EXISTS provider_used text;
+ALTER TABLE public.video_generations  ADD COLUMN IF NOT EXISTS provider_used text;
+ALTER TABLE public.video_generations  ADD COLUMN IF NOT EXISTS attempts jsonb DEFAULT '[]'::jsonb;
 ```
 
-`NOT VALID` lets us add the FK without scanning historical NULL rows; new rows are validated. RLS stays `using true` (no auth this pass) but the indexes/scoping/cascades are the prerequisite for flipping it on later.
+---
 
-## 5. Client store changes
+## 6. Smoke test (after deploy)
 
-- `generatorStore.loadHistory` & `videoStore.loadHistory`: take `createProjectId` arg, query with `.eq('create_project_id', id).order('created_at', desc).limit(100)`, expose `loadMore()`.
-- `videoStore`: add `createProjectId` to insert, drop in-memory cross-project state.
-- `marketingFeedStore`: add unmount cleanup.
-- `Generator.tsx`: when slug changes, switch all three stores' active project; cancel in-flight polling for the previous one.
+I'll call each surface once via `supabase--curl_edge_functions` and report a checklist:
+- Image: nano-banana-pro, seedream-4, grok-imagine, flux, kling, wan
+- Video Create: kling-v3-pro (start+end), veo-3.1 (image), seedance (Runware), pixverse, ltx
+- Video Edit: kling-omni-edit
+- Motion: ev-kling-v3-motion, rw-seedance
+- Marketing: 1 Seedance UGC
 
-## 6. Provider docs to re-verify (no code yet, just confirm)
+Each row gets ✅/❌ with the actual provider that served it (so you can see fallbacks firing).
 
-- fal.ai: Seedream 4 / Flux 2 / Kling V3 / Veo 3.1 / Pixverse v6 / LTX-2 / Kling motion (request + queue poll envelope).
-- Runware: `imageInference` + `videoInference` + `frameImages`.
-- Evolink: `/v1/videos/generations` motion-control body + `/v1/tasks/:id` poll.
-- AtlasCloud: avatar asset registration + Seedance reference-to-video.
-- apiyi/Gemini: `gemini-3-pro-image-preview` + `gemini-3.1-flash-image-preview` payload shape.
+---
 
-Each diff against current code goes into the same loop's PR; nothing speculative.
+## Files touched
+- `supabase/functions/_shared/modelRegistry.ts` (new — single source of truth)
+- `supabase/functions/generate-image/index.ts` (rewrite via registry + fallback chain)
+- `supabase/functions/generate-video/index.ts` (registry + fixed Runware poll + background polling + correct Kling/Veo fields + edit slugs)
+- `supabase/functions/marketing-orchestrate/index.ts` (re-host product images)
+- `src/store/videoStore.ts` (drop client polling, use realtime)
+- `src/store/generatorStore.ts` (consume registry labels)
+- New SQL migration (realtime + provider_used + attempts log)
 
-## 7. Out of scope (call-outs)
-
-- **Auth + per-user RLS** — confirmed deferred. None of this work assumes a logged-in user; everything stays anonymous-public for now. The schema choice (no `user_id` columns added in this pass) is so a future auth pass can add one column + tighten policies without re-doing indexes.
-- **Storage retention / quotas / dashboards** — deferred.
-- **Realtime channel for ms_generations** — current 4 s polling is fine at MVP scale; switch to realtime once auth lands.
-
-## 8. Order of operations in the build pass
-
-1. Migration (section 4) — schema + indexes + cascades.
-2. `generate-video` — add background polling + persist `project_id`/`create_project_id`/refs.
-3. `generate-image` — drop base64 from wire response, persist `width`/`height`, accept explicit `createProjectId`.
-4. Stores — switch to per-project `loadHistory(slug)` + pagination; add cleanup.
-5. `ImageGrid` — single source of truth: query the 3 stores, all already filtered by active project.
-6. Marketing pipeline — re-verify avatar asset registration + cleanup polling.
-7. Provider doc spot-checks for any remaining payload mismatches.
-
-Estimated touch: 1 migration, 3 edge functions, 3 stores, 2 components.
+## Out of scope (already correct or explicitly deferred)
+- Auth (skipped per your earlier choice)
+- Per-project `/create/:slug` rendering (already wired)
+- Reference-image strip / @-mentions

@@ -228,9 +228,11 @@ async function callGenerate(payload: Record<string, unknown>, videoId: string, g
       if (data.responseUrl) pollBody.responseUrl = data.responseUrl;
       if (data.statusUrl) pollBody.statusUrl = data.statusUrl;
 
-      const maxAttempts = 120;
+      const maxAttempts = 360; // ~30 min budget for slow models (Kling 3.0 Pro, Veo 3.1)
+      let delay = 4000;
       for (let i = 0; i < maxAttempts; i++) {
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, delay));
+        delay = Math.min(8000, delay + 250); // gentle backoff, cap at 8s
         try {
           const { data: pollData, error: pollError } = await supabase.functions.invoke('generate-video', { body: pollBody });
           if (pollError) continue;
@@ -242,7 +244,6 @@ async function callGenerate(payload: Record<string, unknown>, videoId: string, g
             updateVideoAndSave(videoId, { status: 'failed', error: pollData.error || 'Generation failed' }, get, set);
             return;
           }
-          // Update progress in memory (don't save to DB for every tick)
           const prog = pollData?.progress;
           if (typeof prog === 'number' && prog > 0) {
             const videos = get().videos.map(v => v.id === videoId ? { ...v, progress: Math.round(prog) } : v);
