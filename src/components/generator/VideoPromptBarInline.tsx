@@ -7,6 +7,7 @@ import { ChevronDownIcon } from '@/components/marketingstudio/FormatIcons';
 import {
   Sparkles, Search, Check, ImagePlus, Film, Wand2, Move3d, X, Volume2, ChevronRight, ChevronLeft, Image as ImageIcon, Clock, Tag, Video as VideoIcon, Plus,
 } from 'lucide-react';
+import { VideoModelIcon } from './VideoModelIcons';
 
 const SUB_MODES: { id: VideoSubMode; label: string; Icon: any; desc: string }[] = [
   { id: 'text-to-video', label: 'Create Video', Icon: Film, desc: 'Generate video from prompt' },
@@ -313,7 +314,7 @@ export function VideoPromptBarInline() {
           <Popover open={modelOpen} onOpenChange={(o) => { setModelOpen(o); if (!o) setExpandedFamily(null); }}>
             <PopoverTrigger asChild>
               <button className="ms-chip-glass flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs text-foreground transition-all">
-                <Film className="w-3.5 h-3.5 text-foreground/80" />
+                <VideoModelIcon family={catalogEntry?.family} id={model} className="w-3.5 h-3.5 text-white" />
                 {displayModelName}
                 <ChevronDownIcon className="size-3.5 text-muted-foreground/70" />
               </button>
@@ -350,8 +351,8 @@ export function VideoPromptBarInline() {
                         onClick={() => { setModel(m.id); setModelOpen(false); }}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/5 transition-colors ${model === m.id ? 'bg-white/10' : ''}`}
                       >
-                        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${model === m.id ? 'bg-[#FF2D78]/15 text-[#FF2D78]' : 'bg-white/5 text-foreground/90'}`}>
-                          <Film className="size-4" />
+                        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${model === m.id ? 'bg-[#FF2D78]/15 text-[#FF2D78]' : 'bg-white/5 text-white'}`}>
+                          <VideoModelIcon id={m.id} className="size-4" />
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
@@ -712,8 +713,8 @@ function CreateModelPicker({
                   onClick={() => setExpandedFamily(f.family)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-white/5 transition-colors ${hasSelected ? 'bg-white/[0.06]' : ''}`}
                 >
-                  <span className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-white/5 text-foreground/90">
-                    <Film className="size-4" />
+                  <span className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-white/5 text-white">
+                    <VideoModelIcon family={f.family} id={f.entries[0].id} className="size-4" />
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-foreground">{f.familyLabel}</div>
@@ -736,8 +737,8 @@ function CatalogRow({ entry, selected, onPick }: { entry: VideoCatalogEntry; sel
       onClick={onPick}
       className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-white/5 transition-colors ${selected ? 'bg-white/10' : ''}`}
     >
-      <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${selected ? 'bg-[#FF2D78]/15 text-[#FF2D78]' : 'bg-white/5 text-foreground/90'}`}>
-        <Film className="size-4" />
+      <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${selected ? 'bg-[#FF2D78]/15 text-[#FF2D78]' : 'bg-white/5 text-white'}`}>
+        <VideoModelIcon family={entry.family} id={entry.id} className="size-4" />
       </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
