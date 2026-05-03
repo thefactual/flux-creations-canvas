@@ -226,7 +226,7 @@ export function VideoPromptBarInline() {
 
         {/* Prompt + CTA */}
         <div className="flex items-start gap-2">
-          <div className="flex-1 min-w-0 flex flex-col gap-1.5 py-1 pr-1">
+          <div className="flex-1 min-w-0 flex flex-col gap-1.5 py-1 pr-1 pl-3">
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
