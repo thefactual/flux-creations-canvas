@@ -1,127 +1,84 @@
+
 ## Goal
 
-Make **Create Video** mode in `VideoPromptBarInline` look and behave like Higgsfield's catalog: a curated, grouped model list with one display name per model (no provider names visible), and per-model upload UIs that change based on what each model actually accepts. Backend continues to do all provider routing.
+Turn "Marketing Studio" into a third **mode** of the unified `/image` generator instead of a separate route. Clicking the tab swaps the prompt bar in-place to the full Marketing Studio prompt bar (with the Product/App pill on the left, references, format picker, avatar/product pickers, duration, resolution, etc.). Backend (orchestrator, Claude script writer, Seedance, AtlasCloud asset registration) is **untouched** — same `marketing-orchestrate` call, same project creation, same navigation to `/marketingstudio/:slug` to view the result.
 
----
+The standalone `/marketingstudio` landing page (hero + "Generate across formats" grid) is fully removed. Project detail pages (`/marketingstudio/:slug`) stay as-is — that's where renders show up.
 
-## 1. New unified model catalog (UI-only metadata)
+## Decisions (you confirmed / I picked)
 
-Add a new `VIDEO_CATALOG` array in `src/store/videoStore.ts` (alongside, not replacing, the existing `VIDEO_MODELS` which the backend keys still rely on). Each entry has:
+1. **`/marketingstudio` route**: fully removed. Any link there now goes to `/image` with marketing mode preselected. `/marketingstudio/:slug` (project view) stays.
+2. **State persistence between tabs**: persist within the session. Lift the marketing prompt bar state (prompt text, product/avatar selections, references, format, aspect, duration, res) into the existing `marketingStudioStore`. Tabbing Image → Marketing → Image keeps everything; only "New project" or successful generate clears it. Uploaded references persist too.
+3. **Layout**: marketing mode is heavier, so on `/image`:
+   - The bottom prompt-bar dock auto-grows to fit (no vertical clipping).
+   - The left **Product/App** vertical pill stays attached to the left of the prompt bar (same as today on `/marketingstudio`), as a floating element — not a full sidebar. On viewports < `md`, it collapses into a small toggle button at the top-left of the prompt bar that opens it as a popover, so the prompt bar height matches Image/Video on mobile.
+   - The page body above the prompt bar shows the existing image grid in Image/Video modes, and the **"Generate across formats"** video grid (the 10 format cards) in Marketing mode — so Recreate still works without leaving the page.
 
-```
-id              → backend model key (matches VIDEO_MODEL_MAP in edge fn)
-name            → user-facing name (NO provider in name)
-family          → 'kling' | 'veo' | 'sora' | 'hailuo' | 'wan' | 'seedance' | 'grok' | 'pixverse' | 'ltx'
-familyLabel     → 'Kling' | 'Google Veo' | 'OpenAI Sora 2' | 'Minimax Hailuo' | …
-familyDesc      → e.g. 'Perfect motion with advanced video control'
-featured        → bool (drives "Featured models" section)
-badge           → 'NEW' | 'EXCLUSIVE' | undefined
-resolution      → '720p' | '1080p' | '4K'
-durationRange   → '3s-15s' | '5s-10s' | '1s-15s' | '4s-8s' | '2s-15s'
-hasAudio        → bool (shows speaker icon)
-uploadLayout    → 'none' | 'start-end' | 'single-required' | 'single-optional'
-modes           → readonly ['text-to-video', ...]
+## Changes
+
+### 1. `src/store/promptModeStore.ts`
+Add `'marketing'` to `PromptMode`:
+```ts
+export type PromptMode = 'image' | 'video' | 'marketing';
 ```
 
-Curated catalog (only models that actually route to a provider we have):
+### 2. `src/components/PromptNavBar.tsx`
+Convert the Marketing Studio item from a `NavLink` to an `onClick` that calls `setMode('marketing')` and `navigate('/image')` if not already there. Active when `onImageRoute && mode === 'marketing'`. Remove the `to: '/marketingstudio'` branch.
 
-**Featured (top of dropdown):**
-- Seedance 2.0 → `rw-seedance-1.5-pro` (NEW, 720p, 4s–15s) — single-optional
-- Seedance 2.0 Fast → keep `rw-seedance-1.5-pro` for now (NEW) — single-optional
-- Kling 3.0 → `kling-v3-pro` (EXCLUSIVE, 4K display, 3s–15s, audio) — start-end
-- Google Veo 3.1 Lite → `veo-3.1-lite` (NEW, 1080p, 4s–8s, audio) — single-required
-- Grok Imagine → backend key TBD; routed via Runware text-to-video (`xai:grok-imagine`) — single-optional
+### 3. `src/pages/Generator.tsx`
+Render based on `mode`:
+- `mode === 'image'` → `<PromptBar />` + `<ImageGrid />` (today's behavior)
+- `mode === 'video'` → `<VideoPromptBarInline />` + `<ImageGrid />` (today's behavior)
+- `mode === 'marketing'` → `<MarketingPromptBar />` + `<FormatsGrid />` (the 10 format cards extracted from the old landing page)
 
-**All models (collapsible families with `>`):**
-- **Minimax Hailuo** → `minimax-video` (single variant) — single-optional
-- **Kling** → expands to: Kling 3.0 (`kling-v3-pro`), Kling 2.6 (`kling-v2.6-pro`), Kling O1 Video (`kling-v3-pro` aliased — or hide if not text-to-video), Kling 2.5 Turbo Pro (`kling-v2.5-turbo-pro`) — start-end
-- **OpenAI Sora 2** → `rw-sora-2` — single-optional
-- **Google Veo** → expands to: Veo 3.1 (`veo-3.1`), Veo 3.1 Fast (`veo-3.1-fast`), Veo 3.1 Lite (`veo-3.1-lite`) — Veo 3.1/Fast: start-end; Veo 3.1 Lite: single-required
-- **Wan** → `pixverse-v6` placeholder until a real Wan provider is wired (or omit) — start-end
-- **Seedance** → `rw-seedance-1.5-pro` — single-optional
-- **Grok Imagine** → Runware `xai:grok-imagine@video` text-to-video variant — single-optional
-- **Runway Gen-4.5** → `rw-runway-gen4.5` — single-optional
-- **PixVerse V6** → `pixverse-v6` — start-end
-- **LTX-2** → `ltx-2-19b` — start-end
+The prompt-bar dock keeps the same fixed-bottom + framer-motion blur/layout swap.
 
-**Skipped per your call:** HappyHorse, Higgsfield (no provider wired).
+### 4. `src/components/marketingstudio/PromptBar.tsx`
+Two small adjustments — no logic changes:
+- Lift local `useState` for `prompt`, `surface`, `mode` (format), `aspect`, `res`, `duration`, `productId/Thumb/Name`, `avatarId/Thumb/Name`, `extraRefs`, `exactVoiceover` into `marketingStudioStore` (new `draft` slice). This way Image ↔ Marketing tab swaps don't reset.
+- The component already navigates to `/marketingstudio/:slug` after a successful generate — keep as-is. After navigation, the tab is no longer relevant (we're on the project page).
 
-If a "family" has only one variant, clicking it selects directly (no expand step). If multiple, show `>` and reveal variants in a sub-panel.
+A new wrapper export `MarketingPromptBar` in `src/components/generator/MarketingPromptBar.tsx` simply re-renders `<PromptBar />` (from `marketingstudio/`) so it lives next to the other generator bars and matches naming.
 
----
+### 5. New `src/components/generator/FormatsGrid.tsx`
+Extract the `FORMATS` array, `FormatCard` component, and `BoltIcon` from the deleted `MarketingStudio.tsx`. Render the same grid above the prompt-bar dock when `mode === 'marketing'`. Recreate button still dispatches `RECREATE_EVENT`, which the marketing prompt bar already listens for.
 
-## 2. Model dropdown redesign (Higgsfield-style)
+### 6. Routes (`src/App.tsx`)
+- Remove `<Route path="/marketingstudio" element={<MarketingStudio />} />`.
+- Add `<Route path="/marketingstudio" element={<Navigate to="/image" replace />} />` so old links don't 404. The mode defaults to whatever the store currently holds; if you want the redirect to also force marketing mode, the navigate target becomes `/image` and a tiny effect on Generator reads a `?mode=marketing` query param.
+- Keep `<Route path="/marketingstudio/:slug" element={<MarketingStudioProject />} />` exactly as-is.
 
-Rewrite the model `PopoverContent` block in `src/components/generator/VideoPromptBarInline.tsx`:
+### 7. Sidebar references
+- `marketingstudio/Sidebar.tsx` "New project" button currently does `navigate('/marketingstudio')` — change to `navigate('/image')` and `setMode('marketing')`.
+- `MarketingStudioProject.tsx` "Back" button (in `TopHeader` with `showBack`) currently goes to `/marketingstudio` — repoint to `/image` with marketing mode.
+
+### 8. Delete
+- `src/pages/MarketingStudio.tsx` (landing page no longer needed; format grid + prompt bar live on `/image`).
+
+## Layout sketch (Marketing mode on `/image`)
 
 ```text
-┌─────────────────────────────────────┐
-│ 🔍 Search...                         │
-├─────────────────────────────────────┤
-│ ✦ Featured models                    │
-│  [icon] Seedance 2.0  [NEW]          │
-│         🏷 720p   ⏱ 4s-15s            │
-│  [icon] Kling 3.0 🔊 [EXCLUSIVE]  ✓  │
-│         🏷 4K     ⏱ 3s-15s            │
-│  [icon] Google Veo 3.1 Lite [NEW]    │
-│         🏷 1080p  ⏱ 4s-8s             │
-│  [icon] Grok Imagine                 │
-│         🏷 720p   ⏱ 1s-15s            │
-├─────────────────────────────────────┤
-│ 📹 All models                        │
-│  [icon] Minimax Hailuo            >  │
-│         High-dynamic, VFX-ready…     │
-│  [icon] Kling                     >  │
-│         Perfect motion with…         │
-│  [icon] OpenAI Sora 2             >  │
-│  [icon] Google Veo                >  │
-│  [icon] Seedance                  >  │
-│  [icon] Grok Imagine              >  │
-└─────────────────────────────────────┘
+┌─────────────────────────────── /image ───────────────────────────────┐
+│  GlobalHeader                                                         │
+│                                                                       │
+│   ┌──────────── Generate across formats (10 cards) ───────────┐      │
+│   │  [card] [card] [card] [card] [card]                       │      │
+│   │  [card] [card] [card] [card] [card]                       │      │
+│   └────────────────────────────────────────────────────────────┘      │
+│                                                                       │
+│        [ Image | Video | Motion | Marketing Studio ]   ← nav bar      │
+│  ┌──┐  ┌──────────────────────────────────────────────────────┐       │
+│  │Pr│  │ + | refs / @mentions / textarea          [Product]   │       │
+│  │od│  │     prompt …                              [Avatar]   │       │
+│  │──│  │ Format ▾  Aspect ▾  Res ▾  Duration ▾   [Generate]   │       │
+│  │Ap│  │                                                       │       │
+│  │p │  └──────────────────────────────────────────────────────┘       │
+│  └──┘                                                                  │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
-Clicking a family with `>` slides in a variant sub-panel (image 3 style) listing the variants with chips + checkmark on the selected one. Selecting any variant updates `model` in the store and routes backend automatically.
+## What does NOT change
 
-Filter to only show entries whose `modes` includes `text-to-video` when the Create Video tab is active.
-
----
-
-## 3. Per-model upload layouts (driven by `uploadLayout`)
-
-Replace the current frame-uploader logic with a switch on `selectedModel.uploadLayout`:
-
-- **`start-end`** (Kling 3.0, Kling 2.6, Veo 3.1, Veo 3.1 Fast, PixVerse, LTX, Wan) → image 4 layout: two equal slots `Start frame` + `End frame`, both labelled "Optional" badge top-right.
-- **`single-required`** (Veo 3.1 Lite) → image 5 layout: one wide tile, no Optional badge, copy: **"Upload image or generate it"** with subtitle **"PNG, JPG or Paste from clipboard"**.
-- **`single-optional`** (Grok Imagine, Sora 2, Hailuo, Seedance, Runway) → image 7 layout: same wide tile but with "Optional" badge top-right.
-- **`none`** (pure text-to-video models) → no upload tile.
-
-Both single-tile variants get a "generate it" inline link styled white/underlined that opens the existing image generator (or a placeholder action for now if not wired).
-
-`onUploadAt(0)` accepts `image/*` for all Create Video layouts.
-
----
-
-## 4. Backend (`supabase/functions/generate-video/index.ts`)
-
-No structural change required for the curated list above — every selected `id` already exists in `VIDEO_MODEL_MAP`. Two small additions:
-
-- Add a Grok Imagine **text-to-video** route: `"grok-imagine": { type: "runware", runwareModel: "xai:grok-imagine@video" }` so the Create Video Grok entry has a key distinct from `grok-imagine-edit`.
-- (Optional later) wire real Wan / HappyHorse / Higgsfield endpoints when providers are added; for now they are simply absent from the catalog.
-
-No provider name leaks to the UI — the catalog only carries the backend `id`.
-
----
-
-## 5. Files touched
-
-- `src/store/videoStore.ts` — add `VIDEO_CATALOG` with the curated entries + `uploadLayout` + family metadata. Keep `VIDEO_MODELS` for backward compat (sidebar / other panels).
-- `src/components/generator/VideoPromptBarInline.tsx` — rewrite model dropdown (Featured + All models + family expand), rewrite frame-uploader block to switch on `uploadLayout`, add the "Upload image or generate it" tile component.
-- `supabase/functions/generate-video/index.ts` — add `grok-imagine` text-to-video map entry.
-
----
-
-## 6. Out of scope (per your answers)
-
-- HappyHorse and Higgsfield models (no provider wired — skipped entirely, not shown as "coming soon").
-- Provider names anywhere in the UI.
-- Edit Video and Motion Control tabs (already done in previous turns, untouched).
+- `marketing-orchestrate` edge function, Claude Sonnet 4.5 script writer, Higgsfield prompt rules, Unboxing two-lane logic, AtlasCloud asset registration — all untouched.
+- `MarketingStudioProject` page (`/marketingstudio/:slug`) and its sidebar with project list — untouched. After clicking Generate, the user still lands on that page to watch the render.
+- Image and Video modes — untouched.
