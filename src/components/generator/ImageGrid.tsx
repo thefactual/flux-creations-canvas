@@ -2,6 +2,8 @@ import { useGeneratorStore, MODELS, GeneratedImage } from '@/store/generatorStor
 import { useVideoStore, GeneratedVideo } from '@/store/videoStore';
 import { useMarketingFeedStore } from '@/store/marketingFeedStore';
 import { MSGeneration } from '@/store/marketingStudioStore';
+
+const EMPTY_MS_FEED: MSGeneration[] = [];
 import { usePromptModeStore } from '@/store/promptModeStore';
 import { useCreateProjectsStore } from '@/store/createProjectsStore';
 import { useGridFilterStore } from '@/store/gridFilterStore';
@@ -62,9 +64,10 @@ export function ImageGrid() {
   const tab = useGridTabStore((s) => s.tab);
   const setTab = useGridTabStore((s) => s.setTab);
 
-  const msFeed = useMarketingFeedStore(
-    (s) => (activeProjectId ? s.byProject[activeProjectId] : undefined) || [],
+  const msFeedRaw = useMarketingFeedStore(
+    (s) => (activeProjectId ? s.byProject[activeProjectId] : undefined),
   );
+  const msFeed = msFeedRaw ?? EMPTY_MS_FEED;
 
   // Merge images + videos + marketing-studio generations into a unified feed.
   const items = useMemo<MediaItem[]>(() => {
