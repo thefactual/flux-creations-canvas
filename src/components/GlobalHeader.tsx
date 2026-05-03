@@ -1,4 +1,5 @@
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
+import { GenerateButton } from '@/components/generator/GenerateButton';
 import { useState } from 'react';
 import { Menu, X, Bell, Gem, User, ArrowLeft } from 'lucide-react';
 import logoWhite from '@/assets/korsola-logo-white.png';
@@ -123,19 +124,27 @@ export function GlobalHeader() {
               <button className="px-4 h-10 rounded-2xl text-sm font-semibold text-foreground hover:bg-muted/50 transition-colors">
                 Login
               </button>
-              <button className="px-5 h-10 rounded-2xl text-sm font-bold text-white bg-[#FF2D78] hover:brightness-110 transition-all">
-                Sign up
-              </button>
+              <GenerateButton
+                label="Sign up"
+                showSparkles={false}
+                className="px-5 h-10 !rounded-2xl text-sm"
+              />
             </>
           ) : (
             <>
-              <button className="hidden sm:flex items-center gap-1.5 px-5 h-10 rounded-2xl text-sm font-bold text-white bg-[#FF2D78] hover:brightness-110 transition-all relative">
-                <Gem className="w-4 h-4" />
-                Upgrade
-                <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1.5 py-px rounded-full bg-lime-300 text-black whitespace-nowrap">
-                  30% OFF
-                </span>
-              </button>
+              <GenerateButton
+                label="Upgrade"
+                showSparkles={false}
+                className="hidden sm:flex px-5 h-10 !rounded-2xl text-sm relative"
+                trailing={
+                  <>
+                    <Gem className="w-4 h-4" />
+                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1.5 py-px rounded-full bg-lime-300 text-black whitespace-nowrap">
+                      30% OFF
+                    </span>
+                  </>
+                }
+              />
               <button
                 className="grid place-items-center w-9 h-9 rounded-full text-foreground hover:bg-muted/50 transition-colors"
                 aria-label="Notifications"
