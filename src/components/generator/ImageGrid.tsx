@@ -721,6 +721,8 @@ function VideoCard({ video }: { video: GeneratedVideo & { kind: 'video' } }) {
     <div
       className="group relative w-full h-full overflow-hidden bg-ms-surface-2 cursor-pointer"
       onClick={() => setSelectedVideoId(video.id)}
+      onMouseEnter={() => { videoRef.current?.play().catch(() => {}); }}
+      onMouseLeave={() => { const v = videoRef.current; if (v) { v.pause(); v.currentTime = 0.1; } }}
     >
       {video.videoUrl ? (
         <video
@@ -731,9 +733,7 @@ function VideoCard({ video }: { video: GeneratedVideo & { kind: 'video' } }) {
           loop
           playsInline
           preload="metadata"
-          onMouseEnter={(e) => e.currentTarget.play().catch(() => {})}
-          onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0.1; }}
-          className="absolute inset-0 w-full h-full object-cover bg-[#0a0a0a]"
+          className="absolute inset-0 w-full h-full object-cover bg-[#0a0a0a] pointer-events-none"
         />
       ) : (
         <div className="absolute inset-0 bg-[#0a0a0a]" />
