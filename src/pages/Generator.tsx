@@ -4,7 +4,7 @@ import { PromptBar } from '@/components/generator/PromptBar';
 import { VideoPromptBarInline } from '@/components/generator/VideoPromptBarInline';
 import { PromptBar as MarketingPromptBar } from '@/components/marketingstudio/PromptBar';
 import { PromptNavBar } from '@/components/PromptNavBar';
-import { Sidebar as MarketingSidebar } from '@/components/marketingstudio/Sidebar';
+import { CreateSidebar } from '@/components/generator/CreateSidebar';
 import { ImageGrid } from '@/components/generator/ImageGrid';
 import { ImageDetailModal } from '@/components/generator/ImageDetailModal';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
