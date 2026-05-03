@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PromptBar } from '@/components/generator/PromptBar';
 import { VideoPromptBarInline } from '@/components/generator/VideoPromptBarInline';
@@ -12,22 +13,81 @@ import { useGeneratorStore } from '@/store/generatorStore';
 import { useVideoStore } from '@/store/videoStore';
 import { usePromptModeStore } from '@/store/promptModeStore';
 import { useCreateProjectsStore } from '@/store/createProjectsStore';
+import { useMarketingFeedStore } from '@/store/marketingFeedStore';
 
 export default function Generator() {
+  const navigate = useNavigate();
+  const { slug } = useParams<{ slug?: string }>();
   const selectedImageId = useGeneratorStore((s) => s.selectedImageId);
   const loadHistory = useGeneratorStore((s) => s.loadHistory);
   const loadVideoHistory = useVideoStore((s) => s.loadHistory);
   const mode = usePromptModeStore((s) => s.mode);
   const sidebarCollapsed = useCreateProjectsStore((s) => s.sidebarCollapsed);
+  const projects = useCreateProjectsStore((s) => s.projects);
+  const projectsLoaded = useCreateProjectsStore((s) => s.loaded);
+  const activeProjectId = useCreateProjectsStore((s) => s.activeProjectId);
+  const setActiveProject = useCreateProjectsStore((s) => s.setActiveProject);
+  const loadProjects = useCreateProjectsStore((s) => s.loadProjects);
+  const createProject = useCreateProjectsStore((s) => s.createProject);
+  const startMarketingPolling = useMarketingFeedStore((s) => s.startPolling);
+  const stopMarketingPolling = useMarketingFeedStore((s) => s.stopPolling);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     loadHistory();
     loadVideoHistory();
-  }, [loadHistory, loadVideoHistory]);
+    loadProjects();
+  }, [loadHistory, loadVideoHistory, loadProjects]);
+
+  // URL slug ↔ active project sync.
+  useEffect(() => {
+    if (!projectsLoaded) return;
+    if (slug) {
+      const match = projects.find((p) => p.slug === slug);
+      if (match && match.id !== activeProjectId) {
+        setActiveProject(match.id);
+      } else if (!match && projects.length > 0) {
+        // Slug not found — fall back to active or first.
+        navigate('/create', { replace: true });
+      }
+    } else if (activeProjectId) {
+      // We're on /create but have an active project — push slug into URL.
+      const active = projects.find((p) => p.id === activeProjectId);
+      if (active) navigate(`/create/${active.slug}`, { replace: true });
+    }
+  }, [slug, projects, projectsLoaded, activeProjectId, setActiveProject, navigate]);
+
+  // When user clicks a project in the sidebar (active changes), reflect in URL.
+  useEffect(() => {
+    if (!projectsLoaded) return;
+    const active = projects.find((p) => p.id === activeProjectId);
+    if (active && active.slug !== slug) {
+      navigate(`/create/${active.slug}`, { replace: false });
+    }
+  }, [activeProjectId, projects, projectsLoaded, slug, navigate]);
+
+  // Poll marketing-studio generations for the active create_project.
+  useEffect(() => {
+    if (activeProjectId) startMarketingPolling(activeProjectId);
+    return () => stopMarketingPolling();
+  }, [activeProjectId, startMarketingPolling, stopMarketingPolling]);
+
+  // Ensure a create_project exists when user starts working.
+  const ensureActiveProject = async (): Promise<string> => {
+    if (activeProjectId) return activeProjectId;
+    const p = await createProject('New project');
+    return p.id;
+  };
 
   const renderBar = () => {
-    if (mode === 'marketing') return <MarketingPromptBar />;
+    if (mode === 'marketing') {
+      return (
+        <MarketingPromptBar
+          createProjectId={activeProjectId ?? undefined}
+          ensureCreateProject={ensureActiveProject}
+        />
+      );
+    }
     if (mode === 'video') return <VideoPromptBarInline />;
     return <PromptBar />;
   };
