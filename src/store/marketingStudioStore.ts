@@ -17,7 +17,7 @@ export type MSResolution = '480p' | '720p' | '1080p';
 export type MSDuration = string; // e.g. "8s" — supports 1s..15s
 export type MSSurface = 'Product' | 'App';
 
-export type MSGenStatus = 'queued' | 'queued_pending_persist' | 'running' | 'done' | 'failed';
+export type MSGenStatus = 'queued' | 'queued_pending_persist' | 'running' | 'processing' | 'done' | 'failed';
 export type MSStage =
   | 'queued'
   | 'scripting'
