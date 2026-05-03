@@ -157,7 +157,7 @@ export function VideoPromptBar() {
 
             {/* Duration */}
             <div className="flex items-center gap-0.5 border border-border/50 rounded-full px-1">
-              {VIDEO_DURATIONS.map(d => (
+              {(modelDurations.length ? modelDurations : VIDEO_DURATIONS).map(d => (
                 <button
                   key={d}
                   onClick={() => setDuration(d)}
@@ -167,6 +167,21 @@ export function VideoPromptBar() {
                 </button>
               ))}
             </div>
+
+            {/* Resolution — only when the active model exposes a resolution control */}
+            {modelResolutions.length > 0 && (
+              <div className="flex items-center gap-0.5 border border-border/50 rounded-full px-1">
+                {modelResolutions.map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setResolution(r)}
+                    className={`text-xs px-2 py-1 rounded-full transition-colors ${resolution === r ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
