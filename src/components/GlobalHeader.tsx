@@ -3,7 +3,7 @@ import { GenerateButton } from '@/components/generator/GenerateButton';
 import { useState } from 'react';
 import { Menu, X, Bell, Gem, User, ArrowLeft } from 'lucide-react';
 import logoWhite from '@/assets/korsola-logo-white.png';
-import logoPink from '@/assets/korsola-logo-pink.png';
+import logoHover from '@/assets/logo-hover.mp4';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useCreateProjectsStore } from '@/store/createProjectsStore';
 
@@ -51,12 +51,14 @@ export function GlobalHeader() {
                 <img
                   src={logoWhite}
                   alt="Korsola"
-                  className="absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:opacity-0"
+                  className="absolute inset-0 w-full h-full object-contain p-1.5 z-10 transition-opacity duration-200 group-hover:opacity-0"
                 />
-                <img
-                  src={logoPink}
-                  alt=""
-                  aria-hidden
+                <video
+                  src={logoHover}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
                   className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                 />
               </span>
