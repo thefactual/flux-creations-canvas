@@ -60,9 +60,14 @@ function modeIcon(mode: MSMode) {
 interface Props {
   projectId?: string;
   projectName?: string;
+  /** When set, this generation belongs to a /create project (not an ms_project).
+   *  No redirect happens, no ms_project is created. */
+  createProjectId?: string;
+  /** Lazy-create a /create project if the user generates without one selected. */
+  ensureCreateProject?: () => Promise<string>;
 }
 
-export function PromptBar({ projectId }: Props) {
+export function PromptBar({ projectId, createProjectId, ensureCreateProject }: Props) {
   const [surface, setSurface] = useState<MSSurface>('Product');
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<MSMode>('UGC');
