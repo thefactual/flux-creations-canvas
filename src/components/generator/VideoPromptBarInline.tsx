@@ -652,11 +652,21 @@ function AspectIcon({ ratio, className = '' }: { ratio: string; className?: stri
 // Single wide upload tile (Veo 3.1 Lite, Grok Imagine, Sora 2…)
 // =============================================================
 function SingleUploadTile({
-  optional, url, onUpload, onRemove,
-}: { optional?: boolean; url?: string; onUpload: () => void; onRemove: () => void }) {
+  optional, url, onUpload, onRemove, onDropFile,
+}: { optional?: boolean; url?: string; onUpload: () => void; onRemove: () => void; onDropFile?: (f: File) => void }) {
+  const [over, setOver] = useState(false);
+  const dropProps = {
+    onDragOver: (e: React.DragEvent) => { e.preventDefault(); setOver(true); },
+    onDragLeave: () => setOver(false),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault(); setOver(false);
+      const f = e.dataTransfer.files?.[0];
+      if (f && onDropFile) onDropFile(f);
+    },
+  };
   if (url) {
     return (
-      <div className="relative w-full max-w-[260px] rounded-xl overflow-hidden border border-white/10 aspect-video bg-black/40">
+      <div {...dropProps} className={`relative w-full max-w-[260px] rounded-xl overflow-hidden border aspect-video bg-black/40 ${over ? 'border-[#FF2D78]' : 'border-white/10'}`}>
         <img src={url} alt="" className="w-full h-full object-cover" />
         <button
           onClick={onRemove}
@@ -670,7 +680,8 @@ function SingleUploadTile({
   return (
     <button
       onClick={onUpload}
-      className="relative w-full max-w-[260px] aspect-video rounded-xl bg-white/[0.03] border border-dashed border-white/15 hover:border-white/30 hover:bg-white/[0.06] transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground px-3"
+      {...dropProps}
+      className={`relative w-full max-w-[260px] aspect-video rounded-xl bg-white/[0.03] border border-dashed transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground px-3 ${over ? 'border-[#FF2D78] bg-white/[0.08]' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.06]'}`}
     >
       {optional && (
         <span className="absolute top-1.5 right-2 text-[9px] text-muted-foreground/80 bg-white/5 rounded-full px-1.5 py-0.5">Optional</span>
