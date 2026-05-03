@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, PanelLeft, MoreHorizontal, Trash2, Sparkles, Pencil } from 'lucide-react';
 import { Logo } from '@/components/marketingstudio/Logo';
 import { useCreateProjectsStore } from '@/store/createProjectsStore';
@@ -20,6 +21,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export function CreateSidebar({ onClose }: { onClose?: () => void }) {
+  const navigate = useNavigate();
   const {
     sidebarCollapsed,
     toggleSidebar,
@@ -59,11 +61,18 @@ export function CreateSidebar({ onClose }: { onClose?: () => void }) {
 
   const handleNew = async () => {
     try {
-      await createProject('New project');
+      const project = await createProject('New project');
+      navigate(`/create/${project.slug}`);
       onClose?.();
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const openProject = (id: string, slug: string) => {
+    if (id !== activeProjectId) setActiveProject(id);
+    navigate(`/create/${slug}`);
+    onClose?.();
   };
 
   return (
@@ -156,9 +165,9 @@ export function CreateSidebar({ onClose }: { onClose?: () => void }) {
             return (
               <div
                 key={p.id}
-                onClick={() => {
-                  setActiveProject(p.id);
-                  onClose?.();
+                onClick={(e) => {
+                  e.preventDefault();
+                  openProject(p.id, p.slug);
                 }}
                 className={`group flex items-center gap-2 ${
                   collapsed ? 'justify-center px-0' : 'px-2'

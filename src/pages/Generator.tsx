@@ -44,32 +44,29 @@ export default function Generator() {
     loadVideoHistory(activeProjectId);
   }, [activeProjectId, loadHistory, loadVideoHistory]);
 
-  // URL slug ↔ active project sync.
+  // URL slug is the source of truth when present; this prevents active-project
+  // state and route state from bouncing each other during project switches.
   useEffect(() => {
     if (!projectsLoaded) return;
+
     if (slug) {
       const match = projects.find((p) => p.slug === slug);
       if (match && match.id !== activeProjectId) {
         setActiveProject(match.id);
-      } else if (!match && projects.length > 0) {
-        // Slug not found — fall back to active or first.
+      } else if (!match) {
+        // Slug not found — fall back to the create root.
         navigate('/create', { replace: true });
       }
     } else if (activeProjectId) {
       // We're on /create but have an active project — push slug into URL.
       const active = projects.find((p) => p.id === activeProjectId);
       if (active) navigate(`/create/${active.slug}`, { replace: true });
+    } else if (projects.length > 0) {
+      const first = projects[0];
+      setActiveProject(first.id);
+      navigate(`/create/${first.slug}`, { replace: true });
     }
   }, [slug, projects, projectsLoaded, activeProjectId, setActiveProject, navigate]);
-
-  // When user clicks a project in the sidebar (active changes), reflect in URL.
-  useEffect(() => {
-    if (!projectsLoaded) return;
-    const active = projects.find((p) => p.id === activeProjectId);
-    if (active && active.slug !== slug) {
-      navigate(`/create/${active.slug}`, { replace: false });
-    }
-  }, [activeProjectId, projects, projectsLoaded, slug, navigate]);
 
   // Poll marketing-studio generations for the active create_project.
   useEffect(() => {
