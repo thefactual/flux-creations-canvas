@@ -8,6 +8,7 @@ import {
   Sparkles, Search, Check, ImagePlus, Film, Wand2, Move3d, X, Volume2, ChevronRight, ChevronLeft, Image as ImageIcon, Clock, Tag, Video as VideoIcon, Plus,
 } from 'lucide-react';
 import { VideoModelIcon } from './VideoModelIcons';
+import { GenerateButton } from './GenerateButton';
 
 const SUB_MODES: { id: VideoSubMode; label: string; Icon: any; desc: string }[] = [
   { id: 'text-to-video', label: 'Create Video', Icon: Film, desc: 'Generate video from prompt' },
