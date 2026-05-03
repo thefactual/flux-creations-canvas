@@ -59,7 +59,7 @@
     --ms-border: 0 0% 14%;
     --ms-cta: 270 85% 60%;
     --ms-cta-2: 285 90% 55%;
-    --ms-glow: 346 92% 45%;
+    --ms-glow: 270 85% 55%;
   }
 }
 
@@ -154,8 +154,8 @@
 .ms-grid-bg {
   background-color: hsl(var(--ms-surface));
   background-image:
-    radial-gradient(ellipse 70% 55% at 50% 0%, hsl(330 100% 58% / 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 50% at 100% 100%, hsl(260 90% 60% / 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 55% at 50% 0%, hsl(270 85% 60% / 0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 100% 100%, hsl(285 90% 55% / 0.07) 0%, transparent 60%),
     linear-gradient(to right, hsl(0 0% 100% / 0.025) 1px, transparent 1px),
     linear-gradient(to bottom, hsl(0 0% 100% / 0.025) 1px, transparent 1px);
   background-size: auto, auto, 96px 96px, 96px 96px;
