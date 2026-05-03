@@ -489,11 +489,15 @@ function ImageCard({ image }: {
           <MenuItem icon={<Trash2 className="w-3.5 h-3.5" />} label="Delete" onClick={() => { deleteImage(image.id); setShowMenu(false); }} destructive />
         </div>
       )}
+    </div>
+  );
+}
 
-function HoverIconBtn({ label, svg, onClick }: {
+function HoverIconBtn({ label, svg, onClick, danger }: {
   label: string;
   svg: React.ReactNode;
   onClick: (e: React.MouseEvent) => void;
+  danger?: boolean;
 }) {
   return (
     <div className="relative group/hib">
