@@ -14,7 +14,7 @@ export type GeneratedVideo = {
   prompt: string;
   referenceImages: string[];
   model: string;
-  mode: 'text-to-video' | 'image-to-video' | 'motion-control';
+  mode: 'text-to-video' | 'image-to-video' | 'motion-control' | 'video-edit';
   aspectRatio: string;
   duration: string;
   status: 'generating' | 'complete' | 'failed' | 'nsfw';
