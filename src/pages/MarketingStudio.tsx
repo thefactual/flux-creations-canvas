@@ -149,7 +149,6 @@ export default function MarketingStudio() {
           </div>
 
           <div className="mt-10">
-            <PromptNavBar />
             <PromptBar />
           </div>
         </section>
