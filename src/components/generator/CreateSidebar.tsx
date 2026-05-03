@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, PanelLeft, MoreHorizontal, Trash2, Sparkles } from 'lucide-react';
+import { Plus, Search, PanelLeft, MoreHorizontal, Trash2, Sparkles, Pencil } from 'lucide-react';
 import { Logo } from '@/components/marketingstudio/Logo';
 import { useCreateProjectsStore } from '@/store/createProjectsStore';
 import {
@@ -8,6 +8,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function CreateSidebar({ onClose }: { onClose?: () => void }) {
   const {
