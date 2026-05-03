@@ -4,6 +4,7 @@ import { VideoPromptBar } from '@/components/video/VideoPromptBar';
 import { VideoSidebar } from '@/components/video/VideoSidebar';
 import { VideoGrid } from '@/components/video/VideoGrid';
 import { VideoDetailModal } from '@/components/video/VideoDetailModal';
+import { PromptNavBar } from '@/components/PromptNavBar';
 import { useVideoStore } from '@/store/videoStore';
 
 export default function Video() {
@@ -38,7 +39,10 @@ export default function Video() {
           <div className="flex-1 overflow-y-auto">
             <VideoGrid />
           </div>
-          <VideoPromptBar />
+          <div className="px-3 md:px-6 pb-3">
+            <PromptNavBar />
+            <VideoPromptBar />
+          </div>
         </>
       )}
 
