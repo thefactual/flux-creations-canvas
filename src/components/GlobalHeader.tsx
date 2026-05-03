@@ -26,26 +26,28 @@ export function GlobalHeader() {
   return (
     <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl">
       <div className="h-20 px-4 md:px-8 flex items-center justify-between gap-4">
-        {/* Left: logo + nav */}
+        {/* Left: logo + nav (hidden on /create — sidebar owns the logo there) */}
         <div className="flex items-center gap-6 min-w-0">
-          <Link to="/home" className="group shrink-0 flex items-center gap-2" aria-label="Korsola home">
-            <span className="relative w-11 h-11 rounded-[10px] overflow-hidden bg-white block">
-              <img
-                src={logoWhite}
-                alt="Korsola"
-                className="absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:opacity-0"
-              />
-              <img
-                src={logoPink}
-                alt=""
-                aria-hidden
-                className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-              />
-            </span>
-            <span className="hidden sm:block text-[13px] font-extrabold tracking-[0.14em] text-foreground">
-              KORSOLA
-            </span>
-          </Link>
+          {!location.pathname.startsWith('/create') && (
+            <Link to="/home" className="group shrink-0 flex items-center gap-2" aria-label="Korsola home">
+              <span className="relative w-11 h-11 rounded-[10px] overflow-hidden bg-white block">
+                <img
+                  src={logoWhite}
+                  alt="Korsola"
+                  className="absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:opacity-0"
+                />
+                <img
+                  src={logoPink}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                />
+              </span>
+              <span className="hidden sm:block text-[13px] font-extrabold tracking-[0.14em] text-foreground">
+                KORSOLA
+              </span>
+            </Link>
+          )}
 
           {!location.pathname.startsWith('/create') && (
             <nav className="hidden md:flex items-center gap-1">
