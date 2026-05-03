@@ -396,11 +396,23 @@ async function handleSubmit(body: Record<string, unknown>) {
     const RUNWARE_API_KEY = Deno.env.get("RUNWARE_API_KEY");
     if (!RUNWARE_API_KEY) return jsonResp({ error: "RUNWARE_API_KEY not configured" }, 500);
 
-    const { width: rwWidth, height: rwHeight } = aspectRatio === "9:16"
-      ? { width: 720, height: 1280 }
-      : aspectRatio === "1:1"
-        ? { width: 1024, height: 1024 }
-        : { width: 1280, height: 720 };
+    const isVideoEdit = mode === "video-edit";
+    const resolution = (body?.resolution as string) || "720p";
+
+    let rwWidth: number, rwHeight: number;
+    if (resolution === "1080p") {
+      ({ width: rwWidth, height: rwHeight } = aspectRatio === "9:16"
+        ? { width: 1080, height: 1920 }
+        : aspectRatio === "1:1"
+          ? { width: 1080, height: 1080 }
+          : { width: 1920, height: 1080 });
+    } else {
+      ({ width: rwWidth, height: rwHeight } = aspectRatio === "9:16"
+        ? { width: 720, height: 1280 }
+        : aspectRatio === "1:1"
+          ? { width: 1024, height: 1024 }
+          : { width: 1280, height: 720 });
+    }
 
     const taskUUID = crypto.randomUUID();
     const task: Record<string, unknown> = {
@@ -415,7 +427,12 @@ async function handleSubmit(body: Record<string, unknown>) {
       outputType: "URL",
     };
 
-    if (referenceImages.length > 0 && mode === "image-to-video") {
+    if (isVideoEdit) {
+      const sourceVideo = referenceImages[0];
+      if (!sourceVideo) return jsonResp({ error: "Video edit requires a reference video in slot 0" }, 400);
+      if (!prompt) return jsonResp({ error: "Video edit requires a text prompt" }, 400);
+      task.inputs = { referenceVideos: [sourceVideo] };
+    } else if (referenceImages.length > 0 && mode === "image-to-video") {
       task.frameImages = referenceImages.map((url: string) => ({ imageURL: url }));
     }
 
