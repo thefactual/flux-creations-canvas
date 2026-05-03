@@ -209,7 +209,7 @@ export function ImageGrid() {
           return (
             <div
               key={`${it.kind}-${it.id}`}
-              className="absolute animate-fade-in"
+              className="absolute animate-fade-in transition-[left,top,width,height] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform"
               style={{ left: pos.left, top: pos.top, width: pos.width, height: pos.height }}
             >
               {it.kind === 'image' ? <ImageCard image={it} /> : <VideoCard video={it} />}
