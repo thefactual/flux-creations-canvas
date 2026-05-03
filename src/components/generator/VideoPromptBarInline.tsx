@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AnimatePresence, motion, LayoutGroup } from 'framer-motion';
 import { useVideoStore, VIDEO_MODELS, VIDEO_ASPECT_RATIOS, VIDEO_DURATIONS } from '@/store/videoStore';
 import { usePromptModeStore, type VideoSubMode } from '@/store/promptModeStore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -92,27 +93,44 @@ export function VideoPromptBarInline() {
   const subLabel = SUB_MODES.find(s => s.id === videoSubMode)!.label;
 
   return (
-    <div className="relative w-full max-w-[1100px] mx-auto">
-      <div className="relative rounded-[22px] ms-glass p-2.5 flex flex-col gap-2.5">
+    <LayoutGroup>
+    <motion.div layout className="relative w-full max-w-[1100px] mx-auto">
+      <motion.div
+        layout
+        transition={{ layout: { duration: 0.42, ease: [0.32, 0.72, 0, 1] } }}
+        className="relative rounded-[22px] ms-glass p-2.5 flex flex-col gap-2.5"
+      >
         {/* Frame uploaders */}
-        {showFrames && (
-          <div className="flex gap-2 px-1 pt-1">
-            {(supportsStartEnd ? ['Start frame', 'End frame'] : isMotion ? ['Driving video', 'Character image'] : ['Image']).map((label, idx) => {
-              const img = referenceImages[idx];
-              const isOptionalEnd = supportsStartEnd && idx === 1;
-              return (
-                <FrameSlot
-                  key={label}
-                  label={label}
-                  optional={isOptionalEnd}
-                  url={img}
-                  onUpload={() => onUploadAt(idx)}
-                  onRemove={() => removeReferenceImage(idx)}
-                />
-              );
-            })}
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {showFrames && (
+            <motion.div
+              key={`frames-${videoSubMode}-${supportsStartEnd}`}
+              layout
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginBottom: 0 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="flex gap-2 px-1 pt-1">
+                {(supportsStartEnd ? ['Start frame', 'End frame'] : isMotion ? ['Driving video', 'Character image'] : ['Image']).map((label, idx) => {
+                  const img = referenceImages[idx];
+                  const isOptionalEnd = supportsStartEnd && idx === 1;
+                  return (
+                    <FrameSlot
+                      key={label}
+                      label={label}
+                      optional={isOptionalEnd}
+                      url={img}
+                      onUpload={() => onUploadAt(idx)}
+                      onRemove={() => removeReferenceImage(idx)}
+                    />
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Prompt + CTA */}
         <div className="flex items-start gap-2">
@@ -316,8 +334,9 @@ export function VideoPromptBarInline() {
 
           <div className="flex-1" />
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+    </LayoutGroup>
   );
 }
 

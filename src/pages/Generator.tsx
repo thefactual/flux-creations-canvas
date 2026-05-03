@@ -29,29 +29,37 @@ export default function Generator() {
       <div className="fixed bottom-4 left-0 right-0 px-3 md:px-6 z-30 pointer-events-none">
         <div className="pointer-events-auto">
           <PromptNavBar />
-          <AnimatePresence mode="wait" initial={false}>
-            {mode === 'image' ? (
-              <motion.div
-                key="image"
-                initial={{ opacity: 0, y: 16, scale: 0.985 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.985 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <PromptBar />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="video"
-                initial={{ opacity: 0, y: 16, scale: 0.985 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.985 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <VideoPromptBarInline />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <motion.div
+            layout
+            transition={{ layout: { duration: 0.42, ease: [0.32, 0.72, 0, 1] } }}
+            style={{ overflow: 'hidden' }}
+          >
+            <AnimatePresence mode="popLayout" initial={false}>
+              {mode === 'image' ? (
+                <motion.div
+                  key="image"
+                  layout
+                  initial={{ opacity: 0, filter: 'blur(6px)' }}
+                  animate={{ opacity: 1, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, filter: 'blur(6px)' }}
+                  transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+                >
+                  <PromptBar />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="video"
+                  layout
+                  initial={{ opacity: 0, filter: 'blur(6px)' }}
+                  animate={{ opacity: 1, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, filter: 'blur(6px)' }}
+                  transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+                >
+                  <VideoPromptBarInline />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </div>
       </div>
 
