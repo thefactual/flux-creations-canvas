@@ -98,7 +98,7 @@ export function VideoPromptBarInline() {
       <motion.div
         layout
         transition={{ layout: { duration: 0.42, ease: [0.32, 0.72, 0, 1] } }}
-        className="relative rounded-[22px] ms-glass-liquid p-2.5 flex flex-col gap-2.5"
+        className="relative rounded-[22px] ms-glass p-2.5 flex flex-col gap-2.5"
       >
         {/* Frame uploaders */}
         <AnimatePresence initial={false}>

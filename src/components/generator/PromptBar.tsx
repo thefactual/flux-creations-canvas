@@ -213,7 +213,7 @@ export function PromptBar() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`relative rounded-[22px] ms-glass-liquid p-2.5 flex flex-col gap-2 transition-all ${
+        className={`relative rounded-[22px] ms-glass p-2.5 flex flex-col gap-2 transition-all ${
           dragging ? 'ring-2 ring-[#FF2D78]' : ''
         }`}
       >

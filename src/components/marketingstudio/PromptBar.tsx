@@ -292,7 +292,7 @@ export function PromptBar({ projectId }: Props) {
         </div>
 
         {/* Main bar */}
-        <div className="flex-1 rounded-[22px] ms-glass-liquid p-2.5 flex flex-col gap-2 min-w-0">
+        <div className="flex-1 rounded-[22px] ms-glass p-2.5 flex flex-col gap-2 min-w-0">
           <div className="flex items-stretch gap-2">
             <button
               onClick={() => setAssetsOpen(true)}

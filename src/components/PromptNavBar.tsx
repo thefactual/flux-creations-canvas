@@ -45,7 +45,7 @@ export function PromptNavBar() {
       className="w-full max-w-[1100px] mx-auto mb-2 flex justify-center"
       style={{ fontFamily: 'Montserrat, system-ui, sans-serif' }}
     >
-      <div className="ms-glass-liquid rounded-full p-1 flex items-center gap-1">
+      <div className="ms-glass rounded-full p-1 flex items-center gap-1">
         {items.map(({ key, label, Icon, active, onClick, to }) => {
           const cls = `group inline-flex items-center gap-2 px-3 sm:px-4 h-9 rounded-full text-[13px] font-semibold transition-all whitespace-nowrap ${
             active
