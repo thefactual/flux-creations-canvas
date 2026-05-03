@@ -169,6 +169,32 @@ export function CreateSidebar({ onClose }: { onClose?: () => void }) {
             return (
               <div
                 key={p.id}
+                draggable={!renamingId}
+                onDragStart={(e) => {
+                  setDraggingId(p.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (draggingId && draggingId !== p.id) setDragOverId(p.id);
+                }}
+                onDragLeave={() => setDragOverId((cur) => (cur === p.id ? null : cur))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const from = draggingId;
+                  setDraggingId(null);
+                  setDragOverId(null);
+                  if (!from || from === p.id) return;
+                  const ids = projects.map((x) => x.id);
+                  const fromIdx = ids.indexOf(from);
+                  const toIdx = ids.indexOf(p.id);
+                  if (fromIdx < 0 || toIdx < 0) return;
+                  ids.splice(fromIdx, 1);
+                  ids.splice(toIdx, 0, from);
+                  reorderProjects(ids);
+                }}
+                onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
                 onClick={(e) => {
                   e.preventDefault();
                   openProject(p.id, p.slug);
@@ -176,6 +202,10 @@ export function CreateSidebar({ onClose }: { onClose?: () => void }) {
                 className={`group flex items-center gap-2 ${
                   collapsed ? 'justify-center px-0' : 'px-2'
                 } h-9 rounded-lg cursor-pointer transition-colors ${
+                  draggingId === p.id ? 'opacity-40' : ''
+                } ${
+                  dragOverId === p.id ? 'ring-1 ring-foreground/40' : ''
+                } ${
                   active
                     ? 'bg-ms-surface-2 ring-1 ring-ms-border'
                     : 'hover:bg-ms-surface-2'
