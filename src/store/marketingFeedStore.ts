@@ -56,6 +56,19 @@ export const useMarketingFeedStore = create<State>((set, get) => ({
       if (error || !data) return;
       const items = (data as any[]).map(mapRow);
       set((s) => ({ byProject: { ...s.byProject, [createProjectId]: items } }));
+
+      // Trigger provider polling for any in-flight jobs — the edge function
+      // checks Atlas/fal and writes the final video_url back to the DB.
+      const inflight = (data as any[]).filter(
+        (r) => r.fal_request_id && (r.status === 'queued' || r.status === 'processing'),
+      );
+      await Promise.all(
+        inflight.map((r) =>
+          supabase.functions
+            .invoke('marketing-generate-video', { body: { poll: r.id } })
+            .catch(() => {}),
+        ),
+      );
     };
     sync();
     pollTimer = setInterval(sync, 4000);
