@@ -31,16 +31,22 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
   return (
     <aside
-      className={`flex flex-col h-full bg-ms-surface border-r border-ms-border transition-[width] duration-200 ${
+      className={`group/aside flex flex-col h-full bg-ms-surface border-r border-ms-border transition-[width] duration-200 ${
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 h-14 shrink-0">
-        <Logo collapsed={collapsed} />
+      <div className="flex items-center justify-between px-3 h-14 shrink-0 relative">
+        <div className={collapsed ? 'transition-opacity duration-150 group-hover/aside:opacity-0 pointer-events-none' : ''}>
+          <Logo collapsed={collapsed} />
+        </div>
         <button
           onClick={toggleSidebar}
-          className="hidden md:grid place-items-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-ms-surface-2 transition-colors"
+          className={`hidden md:grid place-items-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-ms-surface-2 transition-opacity ${
+            collapsed
+              ? 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover/aside:opacity-100'
+              : ''
+          }`}
           aria-label="Toggle sidebar"
         >
           <PanelLeft className="w-4 h-4" />
