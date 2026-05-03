@@ -486,10 +486,10 @@ function extractFalVideoUrl(payload: any): string | null {
   return null;
 }
 
-async function falPoll(endpoint: string, requestId: string): Promise<PollOutcome> {
+async function falPoll(endpoint: string, requestId: string, urls?: { statusUrl?: string | null; responseUrl?: string | null }): Promise<PollOutcome> {
   if (requestId.startsWith('immediate:')) return { status: 'done', videoUrl: requestId.slice('immediate:'.length) };
   const headers = { Authorization: `Key ${FAL_KEY}`, Accept: 'application/json' };
-  const statusRes = await fetch(`${FAL_QUEUE}/${endpoint}/requests/${requestId}/status`, { headers });
+  const statusRes = await fetch(urls?.statusUrl || `${FAL_QUEUE}/${endpoint}/requests/${requestId}/status`, { headers });
   const statusText = await statusRes.text();
   let statusJson: any = {};
   try { statusJson = JSON.parse(statusText); } catch { /* keep text */ }
@@ -503,7 +503,7 @@ async function falPoll(endpoint: string, requestId: string): Promise<PollOutcome
     return { status: 'failed', error: (statusJson?.detail ?? statusJson?.message ?? statusText) || `fal.ai status http ${statusRes.status}` };
   }
 
-  const resultRes = await fetch(`${FAL_QUEUE}/${endpoint}/requests/${requestId}`, { headers });
+  const resultRes = await fetch(urls?.responseUrl || `${FAL_QUEUE}/${endpoint}/requests/${requestId}/response`, { headers });
   if (resultRes.status === 202) return { status: 'processing' };
   const resultText = await resultRes.text();
   let resultJson: any = {};
