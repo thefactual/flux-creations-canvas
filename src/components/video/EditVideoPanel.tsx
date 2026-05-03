@@ -1,6 +1,7 @@
-import { useState, RefObject } from 'react';
+import { RefObject } from 'react';
 import { Plus, Video, Film } from 'lucide-react';
 import { DropZone, readFileAsDataURL } from './DropZone';
+import { useVideoStore } from '@/store/videoStore';
 
 interface EditVideoPanelProps {
   prompt: string;
@@ -19,7 +20,8 @@ export function EditVideoPanel({
   prompt, setPrompt, referenceImages, setReferenceImageAt, removeReferenceImage,
   fileInputRef, selectedModelName,
 }: EditVideoPanelProps) {
-  const [keepAudio, setKeepAudio] = useState(false);
+  const keepAudio = useVideoStore(s => s.keepAudio);
+  const setKeepAudio = useVideoStore(s => s.setKeepAudio);
 
   const sourceVideo = referenceImages[0];
   const imageRefs = referenceImages.slice(1).filter(Boolean);
