@@ -337,17 +337,28 @@ async function handleSubmit(body: Record<string, unknown>) {
       input.keep_audio = body?.keepAudio === true;
     } else {
       input.prompt = prompt;
+      const resolution = typeof body?.resolution === "string" ? body.resolution : undefined;
 
       if (durFormat === "veo-str") {
+        // Veo accepts "4s" / "6s" / "8s"
         input.duration = durNum <= 4 ? "4s" : durNum <= 6 ? "6s" : "8s";
+        // Veo accepts resolution: 720p | 1080p | 4k
+        if (resolution && ["720p", "1080p", "4k"].includes(resolution.toLowerCase())) {
+          input.resolution = resolution.toLowerCase();
+        }
       } else if (durFormat === "pixverse-int") {
         input.duration = Math.max(1, Math.min(15, durNum));
+        // PixVerse accepts: 360p | 540p | 720p | 1080p
+        if (resolution && ["360p", "540p", "720p", "1080p"].includes(resolution)) {
+          input.resolution = resolution;
+        }
       } else if (durFormat === "ltx-frames") {
         input.num_frames = durNum <= 5 ? 121 : 241;
         input.video_size = aspectRatio === "9:16" ? "portrait_16_9" : aspectRatio === "1:1" ? "square" : "landscape_16_9";
       } else if (durFormat === "minimax-none") {
         input.prompt_optimizer = true;
       } else {
+        // Kling family: duration is "5" | "10" string. No resolution param exists.
         input.duration = String(durNum);
       }
 
