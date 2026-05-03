@@ -437,25 +437,41 @@ export function VideoPromptBarInline() {
             <Popover open={durationOpen} onOpenChange={setDurationOpen}>
               <PopoverTrigger asChild>
                 <button className="ms-chip-glass flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs text-foreground transition-all">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                   {duration}s
                   <ChevronDownIcon className="size-3.5 text-muted-foreground/70" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent align="start" side="top" sideOffset={10}
-                className="w-32 p-1.5 rounded-2xl ms-glass shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]">
-                <div className="px-2.5 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-white/50 uppercase">Duration</div>
-                {modelDurations.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => { setDuration(d); setDurationOpen(false); }}
-                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm transition-colors ${
-                      duration === d ? 'bg-white/10 text-white' : 'text-white/85 hover:bg-white/5'
-                    }`}
-                  >
-                    {d}s
-                    {duration === d && <Check className="w-4 h-4 text-[#9C3FED]" />}
-                  </button>
-                ))}
+              <PopoverContent
+                align="start"
+                side="top"
+                sideOffset={10}
+                className="w-[320px] p-4 rounded-2xl border border-white/10 bg-[hsl(0_0%_8%)]/95 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]"
+              >
+                <div className="text-xs font-medium text-white/60 mb-2.5 px-0.5">Duration</div>
+                <div className="rounded-xl bg-white/[0.04] border border-white/10 px-4 py-3 flex items-center gap-3">
+                  <div className="text-base font-semibold text-white tabular-nums w-12 shrink-0">{duration}s</div>
+                  {(() => {
+                    const nums = modelDurations.map((d) => parseInt(d)).filter((n) => !isNaN(n));
+                    const min = Math.min(...nums);
+                    const max = Math.max(...nums);
+                    const cur = parseInt(duration) || min;
+                    return (
+                      <Slider
+                        value={[cur]}
+                        min={min}
+                        max={max}
+                        step={1}
+                        onValueChange={(v) => {
+                          const target = v[0];
+                          const snapped = nums.reduce((p, c) => Math.abs(c - target) < Math.abs(p - target) ? c : p, nums[0]);
+                          setDuration(String(snapped));
+                        }}
+                        className="flex-1"
+                      />
+                    );
+                  })()}
+                </div>
               </PopoverContent>
             </Popover>
           )}
