@@ -5,7 +5,7 @@ import { usePromptModeStore } from '@/store/promptModeStore';
 export function PromptNavBar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { mode, setMode } = usePromptModeStore();
+  const { mode, setMode, videoSubMode, setVideoSubMode } = usePromptModeStore();
 
   const onImageRoute = pathname.startsWith('/image') || pathname.startsWith('/generator');
 
@@ -21,15 +21,22 @@ export function PromptNavBar() {
       key: 'video',
       label: 'Video',
       Icon: Film,
-      active: (onImageRoute && mode === 'video') || pathname.startsWith('/video'),
-      onClick: () => { setMode('video'); if (!onImageRoute && !pathname.startsWith('/video')) navigate('/image'); },
+      active: ((onImageRoute && mode === 'video') || pathname.startsWith('/video')) && videoSubMode !== 'motion-control',
+      onClick: () => {
+        setMode('video');
+        if (videoSubMode === 'motion-control') setVideoSubMode('text-to-video');
+        if (!onImageRoute && !pathname.startsWith('/video')) navigate('/image');
+      },
     },
     {
       key: 'motion',
       label: 'Motion Control',
       Icon: Move3d,
-      to: '/motion-control',
-      active: pathname.startsWith('/motion-control'),
+      active: ((onImageRoute && mode === 'video') || pathname.startsWith('/video')) && videoSubMode === 'motion-control',
+      onClick: () => {
+        setVideoSubMode('motion-control');
+        if (!onImageRoute && !pathname.startsWith('/video')) navigate('/image');
+      },
     },
     {
       key: 'marketing',
