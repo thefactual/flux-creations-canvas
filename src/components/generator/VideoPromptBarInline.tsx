@@ -41,10 +41,12 @@ export function VideoPromptBarInline() {
   const {
     prompt, setPrompt, referenceImages, setReferenceImageAt, removeReferenceImage,
     model, setModel, aspectRatio, setAspectRatio, duration, setDuration, generate,
+    characterOrientation, setCharacterOrientation,
   } = useVideoStore();
   const { videoSubMode, setVideoSubMode } = usePromptModeStore();
   const setStoreMode = useVideoStore(s => s.setMode);
   useEffect(() => { setStoreMode(videoSubMode); }, [videoSubMode, setStoreMode]);
+  const [sceneControlOn, setSceneControlOn] = useState(true);
 
   const [modelOpen, setModelOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
@@ -196,6 +198,12 @@ export function VideoPromptBarInline() {
                           url={referenceImages[1]}
                           onUpload={() => onUploadAt(1)}
                           onRemove={() => removeReferenceImage(1)}
+                        />
+                        <SceneControlCard
+                          on={sceneControlOn}
+                          setOn={setSceneControlOn}
+                          source={characterOrientation ?? 'image'}
+                          setSource={setCharacterOrientation}
                         />
                       </>
                     );
@@ -517,6 +525,50 @@ function MotionSlot({
       <span className="text-[12px] font-semibold text-foreground text-center leading-tight">{title}</span>
       <span className="text-[10px] text-muted-foreground/70 text-center leading-tight">{subtitle}</span>
     </button>
+  );
+}
+
+function SceneControlCard({
+  on, setOn, source, setSource,
+}: {
+  on: boolean;
+  setOn: (v: boolean) => void;
+  source: 'video' | 'image';
+  setSource: (v: 'video' | 'image') => void;
+}) {
+  return (
+    <div className="flex-1 min-w-[220px] max-w-[280px] rounded-xl border border-white/10 bg-white/[0.03] p-3 flex flex-col gap-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[12px] font-semibold text-foreground">Scene control mode</span>
+        <button
+          onClick={() => setOn(!on)}
+          className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${on ? 'bg-emerald-500' : 'bg-white/15'}`}
+        >
+          <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${on ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+      {on && (
+        <>
+          <div className="grid grid-cols-2 gap-1 bg-black/30 rounded-lg p-1">
+            <button
+              onClick={() => setSource('video')}
+              className={`flex items-center justify-center gap-1.5 text-[11px] py-1.5 rounded-md transition-colors ${source === 'video' ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <VideoIcon className="w-3 h-3" /> Video
+            </button>
+            <button
+              onClick={() => setSource('image')}
+              className={`flex items-center justify-center gap-1.5 text-[11px] py-1.5 rounded-md transition-colors ${source === 'image' ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <ImageIcon className="w-3 h-3" /> Image
+            </button>
+          </div>
+          <p className="text-[10px] leading-snug text-muted-foreground/70">
+            Choose where the background should come from: the character image or the motion video
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 
