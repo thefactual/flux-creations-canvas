@@ -314,7 +314,7 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
   setResolution: (resolution) => set({ resolution }),
   setSelectedVideoId: (selectedVideoId) => set({ selectedVideoId }),
 
-  generate: () => {
+  generate: async () => {
     const { prompt, motionPrompt, referenceImages, model, mode, aspectRatio, duration, characterOrientation, keepAudio, resolution } = get();
     const effectivePrompt = mode === 'motion-control' ? motionPrompt.trim() : prompt.trim();
 
@@ -322,6 +322,19 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
     if (mode === 'image-to-video' && referenceImages.length === 0) return;
     if (mode === 'motion-control' && (!referenceImages[0] || !referenceImages[1])) return;
     if (mode === 'video-edit' && (!referenceImages[0] || !effectivePrompt)) return;
+
+    // Resolve the active /create project so the resulting card lands in the
+    // correct workspace. Auto-create one if none exists yet.
+    const { useCreateProjectsStore } = await import('@/store/createProjectsStore');
+    const projStore = useCreateProjectsStore.getState();
+    let projectId: string | null = projStore.activeProjectId;
+    if (!projectId) {
+      const name = effectivePrompt.split(/\s+/).slice(0, 5).join(' ').slice(0, 60) || 'New project';
+      try {
+        const proj = await projStore.createProject(name);
+        projectId = proj.id;
+      } catch { projectId = null; }
+    }
 
     const newVideo: GeneratedVideo = {
       id: crypto.randomUUID(),
@@ -334,6 +347,7 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
       status: 'generating',
       createdAt: Date.now(),
       characterOrientation: mode === 'motion-control' ? characterOrientation : undefined,
+      projectId,
     };
 
     set({ videos: [newVideo, ...get().videos] });
