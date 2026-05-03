@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
+import { useCreateProjectsStore } from '@/store/createProjectsStore';
 
 export type GeneratedImage = {
   id: string;
@@ -14,6 +15,7 @@ export type GeneratedImage = {
   height?: number;
   createdAt: number;
   error?: string;
+  projectId?: string | null;
 };
 
 type GeneratorState = {
