@@ -37,6 +37,7 @@ import {
 } from '@/store/marketingStudioStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { GenerateButton } from '@/components/generator/GenerateButton';
 
 
 const RESOLUTIONS: MSResolution[] = ['480p', '720p', '1080p'];
@@ -490,15 +491,13 @@ export function PromptBar({ projectId, createProjectId, ensureCreateProject }: P
                 </div>
                 <span className="relative drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">AVATAR</span>
               </button>
-              <button
+              <GenerateButton
                 onClick={handleGenerate}
                 disabled={generating}
-                className="ms-cta flex items-center justify-center gap-1.5 w-[170px] h-[88px] rounded-2xl text-white text-[12px] font-extrabold tracking-wider disabled:opacity-60"
-              >
-                {generating ? 'GENERATING…' : 'GENERATE'}
-                <Sparkles className="w-3.5 h-3.5" />
-                <span className="text-[12px] font-bold opacity-95">{(cost / 100).toFixed(2)}</span>
-              </button>
+                className="w-[170px] h-[88px] text-[12px] font-extrabold tracking-wider"
+                label={generating ? 'GENERATING…' : 'GENERATE'}
+                trailing={<span className="text-[12px] font-bold opacity-95">{(cost / 100).toFixed(2)}</span>}
+              />
             </div>
           </div>
 
@@ -530,9 +529,13 @@ export function PromptBar({ projectId, createProjectId, ensureCreateProject }: P
             <button onClick={() => setAvatarOpen(true)} className="ms-glass-2 flex-1 h-12 rounded-xl text-[11px] font-semibold text-foreground">
               + AVATAR
             </button>
-            <button onClick={handleGenerate} className="ms-cta flex-1 h-12 rounded-xl text-white text-[11px] font-extrabold">
-              GENERATE ✦ {(cost / 100).toFixed(2)}
-            </button>
+            <GenerateButton
+              onClick={handleGenerate}
+              className="flex-1 h-12 text-[11px] font-extrabold"
+              label="GENERATE"
+              showSparkles={false}
+              trailing={<span className="text-[11px] font-extrabold">✦ {(cost / 100).toFixed(2)}</span>}
+            />
           </div>
         </div>
       </div>

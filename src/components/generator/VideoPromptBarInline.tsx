@@ -8,6 +8,7 @@ import {
   Sparkles, Search, Check, ImagePlus, Film, Wand2, Move3d, X, Volume2, ChevronRight, ChevronLeft, Image as ImageIcon, Clock, Tag, Video as VideoIcon, Plus,
 } from 'lucide-react';
 import { VideoModelIcon } from './VideoModelIcons';
+import { GenerateButton } from './GenerateButton';
 
 const SUB_MODES: { id: VideoSubMode; label: string; Icon: any; desc: string }[] = [
   { id: 'text-to-video', label: 'Create Video', Icon: Film, desc: 'Generate video from prompt' },
@@ -286,14 +287,11 @@ export function VideoPromptBarInline() {
             )}
           </div>
 
-          <button
+          <GenerateButton
             onClick={handleSubmit}
             disabled={!prompt.trim() && !isMotion && referenceImages.length === 0}
-            className="ms-cta self-center flex items-center justify-center gap-2 h-[72px] px-7 rounded-2xl text-white text-[15px] font-bold disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-          >
-            Generate
-            <Sparkles className="w-4 h-4" />
-          </button>
+            className="self-center h-[72px] px-7 text-[15px]"
+          />
         </div>
 
         {/* Bottom chips row */}
