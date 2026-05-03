@@ -66,6 +66,7 @@ type VideoState = {
   aspectRatio: string;
   duration: string;
   characterOrientation: 'video' | 'image';
+  keepAudio: boolean;
   videos: GeneratedVideo[];
   selectedVideoId: string | null;
   setPrompt: (p: string) => void;
@@ -79,6 +80,7 @@ type VideoState = {
   setAspectRatio: (ar: string) => void;
   setDuration: (d: string) => void;
   setCharacterOrientation: (value: 'video' | 'image') => void;
+  setKeepAudio: (v: boolean) => void;
   setSelectedVideoId: (id: string | null) => void;
   generate: () => void;
   retryVideo: (id: string) => void;
