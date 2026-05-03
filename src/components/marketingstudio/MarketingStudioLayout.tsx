@@ -23,7 +23,7 @@ export function MarketingStudioLayout({
   }, []);
 
   return (
-    <div className="h-screen w-screen bg-ms-bg text-foreground flex overflow-hidden">
+    <div className="h-screen w-screen ms-grid-bg text-foreground flex overflow-hidden">
       {/* Desktop sidebar */}
       <div className="hidden md:flex h-full">
         <Sidebar />
