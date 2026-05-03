@@ -745,7 +745,7 @@ function CatalogRow({ entry, selected, onPick }: { entry: VideoCatalogEntry; sel
           <span className="text-sm text-foreground font-medium">{entry.name}</span>
           {entry.hasAudio && <Volume2 className="w-3 h-3 text-muted-foreground" />}
           {entry.badge && (
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${entry.badge === 'EXCLUSIVE' ? 'bg-[#D4FF3F] text-black' : 'bg-[#D4FF3F] text-black'}`}>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#FF2D78] text-white">
               {entry.badge}
             </span>
           )}
