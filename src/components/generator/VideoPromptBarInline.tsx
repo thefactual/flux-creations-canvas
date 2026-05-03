@@ -5,7 +5,7 @@ import { usePromptModeStore, type VideoSubMode } from '@/store/promptModeStore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronDownIcon } from '@/components/marketingstudio/FormatIcons';
 import {
-  Sparkles, Search, Check, ImagePlus, Film, Wand2, Move3d, X, Volume2, ChevronRight, ChevronLeft, Image as ImageIcon, Clock, Tag,
+  Sparkles, Search, Check, ImagePlus, Film, Wand2, Move3d, X, Volume2, ChevronRight, ChevronLeft, Image as ImageIcon, Clock, Tag, Video as VideoIcon, Plus,
 } from 'lucide-react';
 
 const SUB_MODES: { id: VideoSubMode; label: string; Icon: any; desc: string }[] = [
@@ -161,28 +161,54 @@ export function VideoPromptBarInline() {
                     return null;
                   }
 
-                  // Edit Video / Motion Control — existing behavior
-                  const labels = isVideoEdit
-                    ? (editSupportsImageRefs
-                        ? ['Source video', 'Image 1', 'Image 2', 'Image 3', 'Image 4']
-                        : ['Source video'])
-                    : isMotion
-                      ? ['Driving video', 'Character image']
-                      : ['Image'];
-                  return labels.map((label, idx) => {
-                    const img = referenceImages[idx];
-                    const isOptional = isVideoEdit && idx > 0;
-                    return (
+                  // Edit Video — existing behavior
+                  if (isVideoEdit) {
+                    const labels = editSupportsImageRefs
+                      ? ['Source video', 'Image 1', 'Image 2', 'Image 3', 'Image 4']
+                      : ['Source video'];
+                    return labels.map((label, idx) => (
                       <FrameSlot
                         key={label}
                         label={label}
-                        optional={isOptional}
-                        url={img}
+                        optional={idx > 0}
+                        url={referenceImages[idx]}
                         onUpload={() => onUploadAt(idx)}
                         onRemove={() => removeReferenceImage(idx)}
                       />
+                    ));
+                  }
+                  // Motion Control — two rich tiles (video + character)
+                  if (isMotion) {
+                    return (
+                      <>
+                        <MotionSlot
+                          kind="video"
+                          title="Add motion to copy"
+                          subtitle={<>Video duration:<br/>3–30 seconds</>}
+                          url={referenceImages[0]}
+                          onUpload={() => onUploadAt(0)}
+                          onRemove={() => removeReferenceImage(0)}
+                        />
+                        <MotionSlot
+                          kind="character"
+                          title="Add your character"
+                          subtitle={<>Image with visible<br/>face and body</>}
+                          url={referenceImages[1]}
+                          onUpload={() => onUploadAt(1)}
+                          onRemove={() => removeReferenceImage(1)}
+                        />
+                      </>
                     );
-                  });
+                  }
+                  return (
+                    <FrameSlot
+                      label="Image"
+                      url={referenceImages[0]}
+                      onUpload={() => onUploadAt(0)}
+                      onRemove={() => removeReferenceImage(0)}
+                    />
+                  );
+
                 })()}
               </div>
             </motion.div>
@@ -445,6 +471,49 @@ function FrameSlot({
         <ImagePlus className="w-4 h-4" />
       </div>
       <span className="text-[11px]">{label}</span>
+    </button>
+  );
+}
+
+function MotionSlot({
+  kind, title, subtitle, url, onUpload, onRemove,
+}: {
+  kind: 'video' | 'character';
+  title: string;
+  subtitle: React.ReactNode;
+  url?: string;
+  onUpload: () => void;
+  onRemove: () => void;
+}) {
+  const isVideo = !!url && (url.startsWith('data:video') || /\.(mp4|mov|webm)(\?|$)/i.test(url));
+  if (url) {
+    return (
+      <div className="relative flex-1 max-w-[180px] rounded-xl overflow-hidden border border-white/10 aspect-[3/4] bg-black/40">
+        {isVideo ? (
+          <video src={url} className="w-full h-full object-cover" muted autoPlay loop playsInline />
+        ) : (
+          <img src={url} alt="" className="w-full h-full object-cover" />
+        )}
+        <button
+          onClick={onRemove}
+          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white grid place-items-center hover:bg-black/90 transition"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  }
+  const Icon = kind === 'video' ? VideoIcon : Plus;
+  return (
+    <button
+      onClick={onUpload}
+      className="relative flex-1 max-w-[180px] aspect-[3/4] rounded-xl bg-white/[0.03] border border-dashed border-white/15 hover:border-white/30 hover:bg-white/[0.06] transition-colors flex flex-col items-center justify-center gap-2 px-3 text-muted-foreground"
+    >
+      <div className="w-9 h-9 rounded-full bg-white/5 grid place-items-center">
+        <Icon className="w-4 h-4" />
+      </div>
+      <span className="text-[12px] font-semibold text-foreground text-center leading-tight">{title}</span>
+      <span className="text-[10px] text-muted-foreground/70 text-center leading-tight">{subtitle}</span>
     </button>
   );
 }
