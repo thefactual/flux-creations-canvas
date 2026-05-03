@@ -429,16 +429,20 @@ async function handleSubmit(body: Record<string, unknown>) {
     }
 
     const taskUUID = crypto.randomUUID();
+    const isMotionControl = mode === "motion-control";
     const task: Record<string, unknown> = {
       taskType: "videoInference",
       taskUUID,
       model: config.runwareModel,
-      positivePrompt: prompt,
+      positivePrompt: prompt || "video",
       duration: parseInt(duration) || 5,
       width: rwWidth,
       height: rwHeight,
       outputFormat: "MP4",
       outputType: "URL",
+      // Async delivery so we can poll via getResponse without holding the connection.
+      // https://runware.ai/docs/platform/task-polling
+      deliveryMethod: "async",
     };
 
     if (isVideoEdit) {
@@ -446,11 +450,20 @@ async function handleSubmit(body: Record<string, unknown>) {
       if (!sourceVideo) return jsonResp({ error: "Video edit requires a reference video in slot 0" }, 400);
       if (!prompt) return jsonResp({ error: "Video edit requires a text prompt" }, 400);
       task.inputs = { referenceVideos: [sourceVideo] };
+    } else if (isMotionControl) {
+      // Motion control on Runware (e.g. Seedance): pass motion video + character image
+      const motionVideo = referenceImages[0];
+      const characterImage = referenceImages[1];
+      if (!motionVideo || !characterImage) {
+        return jsonResp({ error: "Motion control requires a motion video (slot 0) and a character image (slot 1)" }, 400);
+      }
+      task.inputs = { referenceVideos: [motionVideo] };
+      task.frameImages = [{ imageURL: characterImage }];
     } else if (referenceImages.length > 0 && mode === "image-to-video") {
-      task.frameImages = referenceImages.map((url: string) => ({ imageURL: url }));
+      task.frameImages = referenceImages.filter(Boolean).map((url: string) => ({ imageURL: url }));
     }
 
-    console.log(`Calling Runware video: model=${config.runwareModel}`);
+    console.log(`Calling Runware video: model=${config.runwareModel}, async`);
 
     const response = await fetch(RUNWARE_BASE, {
       method: "POST",
@@ -465,16 +478,21 @@ async function handleSubmit(body: Record<string, unknown>) {
     }
 
     const resData = await response.json();
-    const videoResult = resData?.data?.find((d: any) => d.taskType === "videoInference");
-    const videoUrl = videoResult?.videoURL || videoResult?.outputURL;
+    // Async submit ack: data[0] echoes our taskUUID with status "processing"
+    const ackRow = resData?.data?.find((d: any) => d.taskUUID === taskUUID) ?? resData?.data?.[0];
+    const completed = resData?.data?.find((d: any) => d.videoURL);
 
-    // If video came immediately
-    if (videoUrl) {
-      return jsonResp({ submitted: true, provider: "runware", taskId: taskUUID, status: "complete", videoUrl });
+    if (completed?.videoURL) {
+      return jsonResp({ submitted: true, provider: "runware", taskId: taskUUID, status: "complete", videoUrl: completed.videoURL });
     }
 
-    console.log(`Runware task submitted: ${taskUUID}`);
-    return jsonResp({ submitted: true, provider: "runware", taskId: videoResult?.taskUUID || taskUUID });
+    const erroredAck = resData?.errors?.[0];
+    if (erroredAck) {
+      return jsonResp({ error: `Runware: ${erroredAck.message || erroredAck.code || "submit failed"}` }, 502);
+    }
+
+    console.log(`Runware task submitted (async): ${taskUUID}`);
+    return jsonResp({ submitted: true, provider: "runware", taskId: ackRow?.taskUUID || taskUUID });
   }
 
   return jsonResp({ error: "Unknown provider type" }, 500);
