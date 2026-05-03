@@ -29,9 +29,13 @@ export function CreateSidebar({ onClose }: { onClose?: () => void }) {
     loadProjects,
     createProject,
     deleteProject,
+    renameProject,
     loaded,
   } = useCreateProjectsStore();
   const [query, setQuery] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const collapsed = sidebarCollapsed;
 
   useEffect(() => {
@@ -41,6 +45,17 @@ export function CreateSidebar({ onClose }: { onClose?: () => void }) {
   const filtered = projects.filter((p) =>
     p.name.toLowerCase().includes(query.toLowerCase())
   );
+
+  const startRename = (id: string, currentName: string) => {
+    setRenamingId(id);
+    setRenameValue(currentName);
+  };
+  const commitRename = async () => {
+    if (renamingId && renameValue.trim()) {
+      await renameProject(renamingId, renameValue.trim());
+    }
+    setRenamingId(null);
+  };
 
   const handleNew = async () => {
     try {
