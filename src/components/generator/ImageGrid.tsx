@@ -35,10 +35,29 @@ function parseRatio(ar: string): number {
 export function ImageGrid() {
   const { images: allImages } = useGeneratorStore();
   const activeProjectId = useCreateProjectsStore((s) => s.activeProjectId);
-  const images = useMemo(
-    () => (activeProjectId ? allImages.filter((i) => i.projectId === activeProjectId) : allImages.filter((i) => !i.projectId)),
-    [allImages, activeProjectId],
-  );
+  const { search, modelFilter, dateFilter } = useGridFilterStore();
+
+  const images = useMemo(() => {
+    let list = activeProjectId
+      ? allImages.filter((i) => i.projectId === activeProjectId)
+      : allImages.filter((i) => !i.projectId);
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((i) => i.prompt?.toLowerCase().includes(q));
+    }
+    if (modelFilter) {
+      list = list.filter((i) => i.model === modelFilter);
+    }
+    if (dateFilter !== 'all') {
+      const now = Date.now();
+      const day = 86400000;
+      const cutoff = dateFilter === 'today' ? now - day : dateFilter === '7d' ? now - 7 * day : now - 30 * day;
+      list = list.filter((i) => i.createdAt >= cutoff);
+    }
+    return list;
+  }, [allImages, activeProjectId, search, modelFilter, dateFilter]);
+
   const zoom = useLayoutStore((s) => s.zoom);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
