@@ -401,6 +401,7 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
           thumbnailUrl: row.thumbnail_url || undefined,
           createdAt: new Date(row.created_at).getTime(),
           error: row.error || undefined,
+          liked: !!row.liked,
         }));
         // Merge with any in-memory videos (active generations)
         const existingIds = new Set(get().videos.map(v => v.id));
