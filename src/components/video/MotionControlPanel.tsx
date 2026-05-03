@@ -91,11 +91,13 @@ export function MotionControlPanel({
           ) : (
             <button
               onClick={() => uploadFileAt(0, 'image/*,video/*')}
-              className="w-full aspect-[3/4] border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-foreground/30 transition-colors"
+              className="w-full aspect-[3/4] border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-foreground/30 transition-colors px-2"
             >
-              <ImageIcon className="w-5 h-5" />
-              <span className="text-[10px]">Motion video</span>
-              <span className="text-[9px] text-muted-foreground/50">Drop or click</span>
+              <div className="grid place-items-center w-8 h-8 rounded-full bg-muted">
+                <Video className="w-4 h-4" />
+              </div>
+              <span className="text-[11px] font-semibold text-foreground text-center leading-tight">Add motion to copy</span>
+              <span className="text-[9px] text-muted-foreground/70 text-center leading-tight">Video duration:<br/>3–30 seconds</span>
             </button>
           )}
         </DropZone>
@@ -112,47 +114,62 @@ export function MotionControlPanel({
           ) : (
             <button
               onClick={() => uploadFileAt(1, 'image/*')}
-              className="w-full aspect-[3/4] border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:border-foreground/30 transition-colors"
+              className="w-full aspect-[3/4] border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-foreground/30 transition-colors px-2"
             >
-              <Plus className="w-5 h-5" />
-              <span className="text-[10px] text-center leading-tight">Add your character</span>
-              <span className="text-[9px] text-muted-foreground/60 text-center px-1">Drop or click</span>
+              <div className="grid place-items-center w-8 h-8 rounded-full bg-muted">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="text-[11px] font-semibold text-foreground text-center leading-tight">Add your character</span>
+              <span className="text-[9px] text-muted-foreground/70 text-center leading-tight">Image with visible<br/>face and body</span>
             </button>
           )}
         </DropZone>
       </div>
 
-      <div className="bg-card border border-border rounded-xl px-3 py-2.5 space-y-2">
+      <div className="bg-card border border-border rounded-xl px-3 py-2.5 space-y-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-foreground">Scene control mode</span>
+          <div className="flex flex-col">
+            <span className="text-xs text-foreground font-medium">Scene control mode</span>
+            <span className="text-[10px] text-muted-foreground">Pick where the background comes from</span>
+          </div>
           <button
             onClick={() => setSceneControl(!sceneControl)}
-            className={`w-9 h-5 rounded-full transition-colors relative ${sceneControl ? 'bg-primary' : 'bg-muted'}`}
+            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${sceneControl ? 'bg-primary' : 'bg-muted'}`}
           >
             <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${sceneControl ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
           </button>
         </div>
 
         {sceneControl && (
-          <>
-            <div className="flex gap-1 bg-muted rounded-lg p-0.5">
-              <button
-                onClick={() => setSceneSource('video')}
-                className={`flex-1 flex items-center justify-center gap-1 text-xs py-1.5 rounded-md transition-colors ${sceneSource === 'video' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
-              >
-                <Video className="w-3 h-3" /> Video
-              </button>
-              <button
-                onClick={() => setSceneSource('image')}
-                className={`flex-1 flex items-center justify-center gap-1 text-xs py-1.5 rounded-md transition-colors ${sceneSource === 'image' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
-              >
-                <ImageIcon className="w-3 h-3" /> Image
-              </button>
-            </div>
-            <p className="text-[10px] text-muted-foreground leading-snug">
-              Choose where the background should come from: the character image or the motion video
-            </p>
-          </>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setSceneSource('video')}
+              className={`relative rounded-xl border overflow-hidden aspect-square flex flex-col items-center justify-center gap-1.5 transition-all ${sceneSource === 'video' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-background hover:border-foreground/20'}`}
+            >
+              {referenceImages[0] && (referenceImages[0].startsWith('data:video') || referenceImages[0].includes('.mp4') || referenceImages[0].includes('.webm') || referenceImages[0].includes('.mov')) ? (
+                <video src={referenceImages[0]} muted playsInline autoPlay loop className={`absolute inset-0 w-full h-full object-cover ${sceneSource === 'video' ? 'opacity-50' : 'opacity-30'}`} />
+              ) : null}
+              <div className={`relative grid place-items-center w-8 h-8 rounded-full ${sceneSource === 'video' ? 'bg-primary/30' : 'bg-muted'}`}>
+                <Video className={`w-4 h-4 ${sceneSource === 'video' ? 'text-primary' : 'text-muted-foreground'}`} />
+              </div>
+              <span className={`relative text-[11px] font-semibold tracking-wide ${sceneSource === 'video' ? 'text-foreground' : 'text-muted-foreground'}`}>VIDEO</span>
+              <span className="relative text-[9px] text-muted-foreground/80 px-2 text-center leading-tight">From motion clip</span>
+            </button>
+
+            <button
+              onClick={() => setSceneSource('image')}
+              className={`relative rounded-xl border overflow-hidden aspect-square flex flex-col items-center justify-center gap-1.5 transition-all ${sceneSource === 'image' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-background hover:border-foreground/20'}`}
+            >
+              {referenceImages[1] ? (
+                <img src={referenceImages[1]} alt="" className={`absolute inset-0 w-full h-full object-cover ${sceneSource === 'image' ? 'opacity-50' : 'opacity-30'}`} />
+              ) : null}
+              <div className={`relative grid place-items-center w-8 h-8 rounded-full ${sceneSource === 'image' ? 'bg-primary/30' : 'bg-muted'}`}>
+                <ImageIcon className={`w-4 h-4 ${sceneSource === 'image' ? 'text-primary' : 'text-muted-foreground'}`} />
+              </div>
+              <span className={`relative text-[11px] font-semibold tracking-wide ${sceneSource === 'image' ? 'text-foreground' : 'text-muted-foreground'}`}>IMAGE</span>
+              <span className="relative text-[9px] text-muted-foreground/80 px-2 text-center leading-tight">From character photo</span>
+            </button>
+          </div>
         )}
       </div>
 
