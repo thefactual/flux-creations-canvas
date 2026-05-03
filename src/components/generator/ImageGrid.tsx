@@ -503,7 +503,7 @@ function HoverIconBtn({ label, svg, onClick, danger }: {
     <div className="relative group/hib">
       <button
         onClick={onClick}
-        className="flex items-center justify-center w-9 h-9 rounded-full bg-black/55 text-white hover:bg-black/75 backdrop-blur-md ring-1 ring-white/10 transition-colors"
+        className={`flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md ring-1 ring-white/10 transition-colors ${danger ? 'bg-black/55 text-white hover:bg-red-600/85' : 'bg-black/55 text-white hover:bg-black/75'}`}
         aria-label={label}
       >
         {svg}
