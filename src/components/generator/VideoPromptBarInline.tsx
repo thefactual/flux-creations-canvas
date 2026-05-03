@@ -497,7 +497,7 @@ export function VideoPromptBarInline() {
           )}
 
           {/* Resolution */}
-          {!isMotion && resolutionOptions.length > 0 && (
+          {resolutionOptions.length > 0 && (
             <Popover open={resolutionOpen} onOpenChange={setResolutionOpen}>
               <PopoverTrigger asChild>
                 <button className="ms-chip-glass flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs text-foreground transition-all">
