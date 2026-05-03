@@ -20,6 +20,7 @@ export type Database = {
           id: string
           name: string
           slug: string
+          sort_order: number | null
           thumb_locked: boolean
           thumb_url: string | null
           updated_at: string
@@ -30,6 +31,7 @@ export type Database = {
           id?: string
           name?: string
           slug: string
+          sort_order?: number | null
           thumb_locked?: boolean
           thumb_url?: string | null
           updated_at?: string
@@ -40,6 +42,7 @@ export type Database = {
           id?: string
           name?: string
           slug?: string
+          sort_order?: number | null
           thumb_locked?: boolean
           thumb_url?: string | null
           updated_at?: string

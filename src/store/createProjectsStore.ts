@@ -23,6 +23,7 @@ type State = {
   deleteProject: (id: string) => Promise<void>;
   setProjectThumbnail: (id: string, url: string, locked?: boolean) => Promise<void>;
   bumpProjectThumbIfUnlocked: (id: string, url: string) => Promise<void>;
+  reorderProjects: (orderedIds: string[]) => Promise<void>;
 };
 
 function slugify(name: string) {
@@ -58,6 +59,7 @@ export const useCreateProjectsStore = create<State>((set, get) => ({
     const { data, error } = await supabase
       .from('create_projects' as any)
       .select('*')
+      .order('sort_order', { ascending: true, nullsFirst: false })
       .order('updated_at', { ascending: false })
       .limit(200) as any;
     if (error) {
@@ -150,5 +152,20 @@ export const useCreateProjectsStore = create<State>((set, get) => ({
       .from('create_projects' as any)
       .update({ thumb_url: url, updated_at: new Date().toISOString() } as any)
       .eq('id', id);
+  },
+
+  reorderProjects: async (orderedIds) => {
+    const projects = get().projects;
+    const map = new Map(projects.map((p) => [p.id, p]));
+    const reordered = orderedIds.map((id) => map.get(id)).filter(Boolean) as CreateProject[];
+    // append any not in orderedIds
+    projects.forEach((p) => { if (!orderedIds.includes(p.id)) reordered.push(p); });
+    set({ projects: reordered });
+    // persist sort_order: spaced increments
+    await Promise.all(
+      reordered.map((p, idx) =>
+        supabase.from('create_projects' as any).update({ sort_order: idx } as any).eq('id', p.id)
+      )
+    );
   },
 }));
