@@ -191,6 +191,7 @@ async function saveToDb(img: GeneratedImage, storageUrl: string, projectId: stri
     status: img.status,
     error: img.error || null,
     project_id: projectId,
+    create_project_id: projectId,
   } as any);
   if (error) console.error('DB insert error:', error);
 
