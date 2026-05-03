@@ -14,6 +14,15 @@ const minProviderTimeoutMs = (duration?: string) => {
   return Math.max(8 * 60 * 1000, Math.min(15 * 60 * 1000, (6 * 60 + seconds * 30) * 1000));
 };
 
+const isGenerationActive = (g: MSGeneration): boolean =>
+  g.status === 'queued' ||
+  g.status === 'queued_pending_persist' ||
+  g.status === 'running' ||
+  (g.status as string) === 'processing';
+
+const isGenerationPending = (g: MSGeneration): boolean =>
+  isGenerationActive(g) || (!g.videoUrl && g.status !== 'failed' && g.stage !== 'done');
+
 function stageLabel(g: MSGeneration): string {
   if (g.status === 'failed') return 'Failed';
   if (g.status === 'done') return 'Ready';
