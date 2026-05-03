@@ -274,12 +274,16 @@ async function handleSubmit(body: Record<string, unknown>) {
     if (!FAL_KEY) return jsonResp({ error: "FAL_KEY not configured" }, 500);
 
     const isMotionControl = mode === "motion-control";
+    const isVideoEdit = mode === "video-edit";
     const isImageMode = mode === "image-to-video" && referenceImages.length > 0;
 
     let endpoint: string | undefined;
     if (isMotionControl) {
       endpoint = config.motionControl;
       if (!endpoint) return jsonResp({ error: `Model ${model} does not support motion control` }, 400);
+    } else if (isVideoEdit) {
+      endpoint = config.videoEdit;
+      if (!endpoint) return jsonResp({ error: `Model ${model} does not support video editing` }, 400);
     } else if (isImageMode) {
       endpoint = config.imageToVideo;
       if (!endpoint) return jsonResp({ error: `Model ${model} does not support image to video` }, 400);
