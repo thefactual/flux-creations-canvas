@@ -892,12 +892,6 @@ function MarketingCard({ gen, createProjectId }: { gen: MSGeneration & { kind: '
 
         {!isPending && !isFailed && (
           <>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-            <div className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 bg-black/20 transition-opacity">
-              <div className="grid place-items-center w-12 h-12 rounded-full bg-white/90">
-                <Play className="w-5 h-5 text-black fill-black" />
-              </div>
-            </div>
             <div className="absolute bottom-2 right-2 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               <HoverIconBtn label="Expand" onClick={(e) => { e.stopPropagation(); setSelected(true); }} svg={<Maximize2 className="w-[18px] h-[18px]" />} />
               <HoverIconBtn
