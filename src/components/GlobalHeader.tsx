@@ -4,6 +4,7 @@ import { Menu, X, Bell, Gem, User } from 'lucide-react';
 import logoWhite from '@/assets/korsola-logo-white.png';
 import logoPink from '@/assets/korsola-logo-pink.png';
 import { useLayoutStore } from '@/store/layoutStore';
+import { useCreateProjectsStore } from '@/store/createProjectsStore';
 
 // TODO: replace with real auth state
 const isLoggedIn = false;
@@ -19,12 +20,23 @@ const NAV_ITEMS = [
 export function GlobalHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const sidebarCollapsed = useCreateProjectsStore((s) => s.sidebarCollapsed);
 
   // Hide on marketing studio routes
   if (location.pathname.startsWith('/marketingstudio')) return null;
 
+  const isCreate = location.pathname.startsWith('/create');
+  const sidebarWidth = sidebarCollapsed ? 64 : 256;
+
   return (
-    <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl">
+    <header
+      className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl transition-[left,width] duration-200 ease-out"
+      style={
+        isCreate
+          ? { marginLeft: `${sidebarWidth}px`, width: `calc(100% - ${sidebarWidth}px)` }
+          : { width: '100%' }
+      }
+    >
       <div className="h-20 px-4 md:px-8 flex items-center justify-between gap-4">
         {/* Left: logo + nav (hidden on /create — sidebar owns the logo there) */}
         <div className="flex items-center gap-6 min-w-0">
