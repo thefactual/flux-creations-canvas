@@ -42,10 +42,10 @@ export const VIDEO_MODELS = [
   { id: 'pixverse-v6', name: 'PixVerse V6', desc: 'Lifelike physics and striking visuals', featured: true, badge: 'NEW' as const, provider: 'fal', modes: ['text-to-video', 'image-to-video'] as const },
   { id: 'ltx-2-19b', name: 'LTX-2 19B', desc: 'Video with audio from images', featured: false, provider: 'fal', modes: ['text-to-video', 'image-to-video'] as const },
   { id: 'rw-seedance-1.5-pro', name: 'Seedance 1.5 Pro', desc: 'ByteDance motion control video', featured: true, badge: 'NEW' as const, provider: 'runware', modes: ['text-to-video', 'image-to-video', 'motion-control'] as const },
-  // Video edit (video-to-video) — fal.ai Kling
-  { id: 'kling-o1-edit-pro', name: 'Kling O1 Video Edit', desc: 'Generate with elements and references', featured: true, badge: 'EDIT' as const, provider: 'fal', modes: ['video-edit'] as const },
-  { id: 'kling-o3-edit-std', name: 'Kling O3 Video Edit (Std)', desc: 'Edit videos with text prompts — standard', featured: true, badge: 'NEW' as const, provider: 'fal', modes: ['video-edit'] as const },
-  { id: 'kling-o3-edit-pro', name: 'Kling O3 Video Edit (Pro)', desc: 'Edit videos with text prompts — pro quality', featured: true, badge: 'PRO' as const, provider: 'fal', modes: ['video-edit'] as const },
+  // Video edit (video-to-video)
+  { id: 'kling-omni-edit', name: 'Kling 3.0 Omni Edit', desc: 'Edit videos with text prompts', featured: true, badge: 'EXCLUSIVE' as const, provider: 'fal', modes: ['video-edit'] as const },
+  { id: 'kling-o1-edit-pro', name: 'Kling O1 Video Edit', desc: 'Generate with elements and references', featured: true, provider: 'fal', modes: ['video-edit'] as const },
+  { id: 'grok-imagine-edit', name: 'Grok Imagine Edit', desc: 'Edit videos with text prompts', featured: true, badge: 'NEW' as const, provider: 'runware', modes: ['video-edit'] as const },
   { id: 'rw-runway-gen4.5', name: 'Runway Gen-4.5', desc: 'Advanced multimodal video generation', featured: true, provider: 'runware', modes: ['text-to-video', 'image-to-video'] as const },
   { id: 'rw-sora-2', name: 'Sora 2', desc: 'OpenAI video generation', featured: true, provider: 'runware', modes: ['text-to-video', 'image-to-video'] as const },
   { id: 'rw-kling-2.5', name: 'RW Kling 2.5 Turbo Pro', desc: 'Kling via Runware, no filter', featured: false, provider: 'runware', modes: ['text-to-video', 'image-to-video'] as const },
