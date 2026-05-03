@@ -339,6 +339,14 @@ function ImageCard({ image }: {
 
   const aspectClass = getAspectClass(image.aspectRatio);
 
+  // Tick every second while generating so elapsed/progress updates live.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    if (image.status !== 'generating') return;
+    const t = setInterval(() => forceTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [image.status]);
+
   // Generating state — Marketing Studio style queue card with shimmer + progress
   if (image.status === 'generating') {
     const elapsed = Math.floor((Date.now() - image.createdAt) / 1000);
