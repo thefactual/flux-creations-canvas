@@ -362,6 +362,8 @@ export default function MarketingStudioProject() {
                 <button
                   key={g.id}
                   onClick={() => !isPending && !isFailed && setSelected(g)}
+                  onMouseEnter={(e) => { const v = e.currentTarget.querySelector('video'); v?.play().catch(() => {}); }}
+                  onMouseLeave={(e) => { const v = e.currentTarget.querySelector('video'); if (v) { v.pause(); v.currentTime = 0.1; } }}
                   className="group relative aspect-[9/16] rounded-xl overflow-hidden bg-ms-surface-2 ring-1 ring-ms-border hover:ring-foreground/30 transition-all text-left"
                 >
                   {g.videoUrl && !isPending && !isFailed ? (
@@ -371,16 +373,7 @@ export default function MarketingStudioProject() {
                       loop
                       playsInline
                       preload="metadata"
-                      onMouseEnter={(e) => {
-                        const v = e.currentTarget;
-                        v.play().catch(() => {});
-                      }}
-                      onMouseLeave={(e) => {
-                        const v = e.currentTarget;
-                        v.pause();
-                        v.currentTime = 0.1;
-                      }}
-                      className="w-full h-full object-cover bg-[#0a0a0a]"
+                      className="w-full h-full object-cover bg-[#0a0a0a] pointer-events-none"
                     />
                   ) : g.thumbUrl && !isPending && !isFailed ? (
                     <img
