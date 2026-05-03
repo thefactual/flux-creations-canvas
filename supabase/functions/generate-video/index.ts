@@ -365,7 +365,7 @@ async function handleSubmit(body: Record<string, unknown>) {
         input[imgField] = referenceImages[0];
         // Only Kling v3/2.6 i2v support a paired end frame (end_image_url).
         // Veo / PixVerse / Hailuo / LTX do not — silently drop the second image.
-        const supportsEndFrame = activeModel?.startsWith("kling-v3") || activeModel?.startsWith("kling-v2.6");
+        const supportsEndFrame = model.startsWith("kling-v3") || model.startsWith("kling-v2.6");
         if (referenceImages.length > 1 && supportsEndFrame && imgField === "start_image_url") {
           input.end_image_url = referenceImages[1];
         }
