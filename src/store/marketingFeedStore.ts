@@ -45,16 +45,16 @@ export const useMarketingFeedStore = create<State>((set, get) => ({
     activeProject = createProjectId;
 
     const sync = async () => {
-      const { data, error } = await supabase
-        .from('ms_generations')
+      const { data, error } = await (supabase
+        .from('ms_generations' as any)
         .select(
           'id, status, stage, video_url, thumb_url, error, fal_request_id, prompt, format, surface, aspect, resolution, duration_seconds, product_id, avatar_id, created_at, updated_at, keyframe_url, liked',
         )
-        .eq('create_project_id' as any, createProjectId)
+        .eq('create_project_id', createProjectId)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(100) as any);
       if (error || !data) return;
-      const items = data.map(mapRow);
+      const items = (data as any[]).map(mapRow);
       set((s) => ({ byProject: { ...s.byProject, [createProjectId]: items } }));
     };
     sync();
