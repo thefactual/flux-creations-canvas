@@ -127,7 +127,7 @@ function SortableThumbnail({ id, src, index, onPreview, onRemove, onChipClick }:
       className={`group relative h-16 w-16 shrink-0 cursor-grab rounded-2xl overflow-hidden border border-white/10 bg-muted/20 active:cursor-grabbing ${isDragging ? 'z-20 opacity-60 scale-105 shadow-xl' : ''}`}
     >
       <img src={src} alt="" className="pointer-events-none h-full w-full select-none object-cover" draggable={false} />
-      <span className="pointer-events-none absolute bottom-1 left-1 flex h-4 min-w-4 px-1 items-center justify-center rounded bg-[#FF2D78] text-[10px] font-bold text-white">
+      <span className="pointer-events-none absolute bottom-1 left-1 flex h-4 min-w-4 px-1 items-center justify-center rounded bg-[#9C3FED] text-[10px] font-bold text-white">
         @{index + 1}
       </span>
 

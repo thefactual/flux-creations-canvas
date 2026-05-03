@@ -115,9 +115,9 @@ export function GlobalHeader() {
           {!isLoggedIn ? (
             <>
               <button className="hidden sm:flex items-center gap-1.5 px-4 h-10 rounded-2xl text-sm font-semibold text-foreground hover:bg-muted/50 relative transition-colors">
-                <Gem className="w-4 h-4 text-[#FF2D78]" />
+                <Gem className="w-4 h-4 text-[#9C3FED]" />
                 Pricing
-                <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1.5 py-px rounded-full bg-[#FF2D78] text-white whitespace-nowrap">
+                <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1.5 py-px rounded-full bg-[#9C3FED] text-white whitespace-nowrap">
                   30% OFF
                 </span>
               </button>
@@ -152,7 +152,7 @@ export function GlobalHeader() {
                 <Bell className="w-4 h-4" />
               </button>
               <button
-                className="w-8 h-8 rounded-full bg-muted grid place-items-center hover:ring-2 hover:ring-[#FF2D78] transition-all"
+                className="w-8 h-8 rounded-full bg-muted grid place-items-center hover:ring-2 hover:ring-[#9C3FED] transition-all"
                 aria-label="Profile"
               >
                 <User className="w-4 h-4 text-foreground" />
@@ -220,7 +220,7 @@ function LayoutZoomSlider() {
         onChange={(e) => setZoom(parseInt(e.target.value, 10))}
         aria-label="Grid size"
         className="ms-zoom-slider w-28 cursor-pointer"
-        style={{ background: `linear-gradient(to right, #FF2D78 0%, #FF2D78 ${pct}%, hsl(0 0% 100% / 0.12) ${pct}%, hsl(0 0% 100% / 0.12) 100%)` }}
+        style={{ background: `linear-gradient(to right, #9C3FED 0%, #9C3FED ${pct}%, hsl(0 0% 100% / 0.12) ${pct}%, hsl(0 0% 100% / 0.12) 100%)` }}
       />
     </div>
   );

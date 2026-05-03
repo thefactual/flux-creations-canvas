@@ -325,7 +325,7 @@ export function VideoPromptBarInline() {
                     <div className="text-sm text-foreground">{label}</div>
                     <div className="text-[11px] text-muted-foreground truncate">{desc}</div>
                   </div>
-                  {videoSubMode === id && <Check className="w-3.5 h-3.5 text-[#FF2D78] shrink-0" />}
+                  {videoSubMode === id && <Check className="w-3.5 h-3.5 text-[#9C3FED] shrink-0" />}
                 </button>
               ))}
             </PopoverContent>
@@ -372,19 +372,19 @@ export function VideoPromptBarInline() {
                         onClick={() => { setModel(m.id); setModelOpen(false); }}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/5 transition-colors ${model === m.id ? 'bg-white/10' : ''}`}
                       >
-                        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${model === m.id ? 'bg-[#FF2D78]/15 text-[#FF2D78]' : 'bg-white/5 text-white'}`}>
+                        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${model === m.id ? 'bg-[#9C3FED]/15 text-[#9C3FED]' : 'bg-white/5 text-white'}`}>
                           <VideoModelIcon id={m.id} className="size-4" />
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm text-foreground">{m.name}</span>
                             {m.badge && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FF2D78]/20 text-[#FF2D78]">{m.badge}</span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#9C3FED]/20 text-[#9C3FED]">{m.badge}</span>
                             )}
                           </div>
                           <span className="text-xs text-muted-foreground truncate block">{m.desc}</span>
                         </div>
-                        {model === m.id && <Check className="w-4 h-4 text-[#FF2D78] shrink-0" />}
+                        {model === m.id && <Check className="w-4 h-4 text-[#9C3FED] shrink-0" />}
                       </button>
                     ))}
                     {filteredModels.length === 0 && (
@@ -451,7 +451,7 @@ export function VideoPromptBarInline() {
                     }`}
                   >
                     {d}s
-                    {duration === d && <Check className="w-4 h-4 text-[#FF2D78]" />}
+                    {duration === d && <Check className="w-4 h-4 text-[#9C3FED]" />}
                   </button>
                 ))}
               </PopoverContent>
@@ -479,7 +479,7 @@ export function VideoPromptBarInline() {
                     }`}
                   >
                     {r}
-                    {resolution === r && <Check className="w-4 h-4 text-[#FF2D78]" />}
+                    {resolution === r && <Check className="w-4 h-4 text-[#9C3FED]" />}
                   </button>
                 ))}
               </PopoverContent>
@@ -509,7 +509,7 @@ function FrameSlot({
   };
   if (url) {
     return (
-      <div {...dropProps} className={`relative flex-1 max-w-[180px] rounded-xl overflow-hidden border aspect-video bg-black/40 ${over ? 'border-[#FF2D78]' : 'border-white/10'}`}>
+      <div {...dropProps} className={`relative flex-1 max-w-[180px] rounded-xl overflow-hidden border aspect-video bg-black/40 ${over ? 'border-[#9C3FED]' : 'border-white/10'}`}>
         {url.startsWith('data:video') || url.match(/\.(mp4|mov|webm)$/i) ? (
           <video src={url} className="w-full h-full object-cover" muted />
         ) : (
@@ -529,7 +529,7 @@ function FrameSlot({
     <button
       onClick={onUpload}
       {...dropProps}
-      className={`relative flex-1 max-w-[180px] aspect-video rounded-xl bg-white/[0.03] border border-dashed transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground ${over ? 'border-[#FF2D78] bg-white/[0.08]' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.06]'}`}
+      className={`relative flex-1 max-w-[180px] aspect-video rounded-xl bg-white/[0.03] border border-dashed transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground ${over ? 'border-[#9C3FED] bg-white/[0.08]' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.06]'}`}
     >
       {optional && (
         <span className="absolute top-1.5 right-2 text-[9px] text-muted-foreground/70 bg-white/5 rounded-full px-1.5 py-0.5">Optional</span>
@@ -566,7 +566,7 @@ function MotionSlot({
   };
   if (url) {
     return (
-      <div {...dropProps} className={`relative flex-1 max-w-[180px] rounded-xl overflow-hidden border aspect-[3/4] bg-black/40 ${over ? 'border-[#FF2D78]' : 'border-white/10'}`}>
+      <div {...dropProps} className={`relative flex-1 max-w-[180px] rounded-xl overflow-hidden border aspect-[3/4] bg-black/40 ${over ? 'border-[#9C3FED]' : 'border-white/10'}`}>
         {isVideo ? (
           <video src={url} className="w-full h-full object-cover" muted autoPlay loop playsInline />
         ) : (
@@ -586,7 +586,7 @@ function MotionSlot({
     <button
       onClick={onUpload}
       {...dropProps}
-      className={`relative flex-1 max-w-[180px] aspect-[3/4] rounded-xl bg-white/[0.03] border border-dashed transition-colors flex flex-col items-center justify-center gap-2 px-3 text-muted-foreground ${over ? 'border-[#FF2D78] bg-white/[0.08]' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.06]'}`}
+      className={`relative flex-1 max-w-[180px] aspect-[3/4] rounded-xl bg-white/[0.03] border border-dashed transition-colors flex flex-col items-center justify-center gap-2 px-3 text-muted-foreground ${over ? 'border-[#9C3FED] bg-white/[0.08]' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.06]'}`}
     >
       <div className="w-9 h-9 rounded-full bg-white/5 grid place-items-center">
         <Icon className="w-4 h-4" />
@@ -670,7 +670,7 @@ function SingleUploadTile({
   };
   if (url) {
     return (
-      <div {...dropProps} className={`relative w-full max-w-[260px] rounded-xl overflow-hidden border aspect-video bg-black/40 ${over ? 'border-[#FF2D78]' : 'border-white/10'}`}>
+      <div {...dropProps} className={`relative w-full max-w-[260px] rounded-xl overflow-hidden border aspect-video bg-black/40 ${over ? 'border-[#9C3FED]' : 'border-white/10'}`}>
         <img src={url} alt="" className="w-full h-full object-cover" />
         <button
           onClick={onRemove}
@@ -685,7 +685,7 @@ function SingleUploadTile({
     <button
       onClick={onUpload}
       {...dropProps}
-      className={`relative w-full max-w-[260px] aspect-video rounded-xl bg-white/[0.03] border border-dashed transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground px-3 ${over ? 'border-[#FF2D78] bg-white/[0.08]' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.06]'}`}
+      className={`relative w-full max-w-[260px] aspect-video rounded-xl bg-white/[0.03] border border-dashed transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground px-3 ${over ? 'border-[#9C3FED] bg-white/[0.08]' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.06]'}`}
     >
       {optional && (
         <span className="absolute top-1.5 right-2 text-[9px] text-muted-foreground/80 bg-white/5 rounded-full px-1.5 py-0.5">Optional</span>
@@ -820,7 +820,7 @@ function CatalogRow({ entry, selected, onPick }: { entry: VideoCatalogEntry; sel
       onClick={onPick}
       className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-white/5 transition-colors ${selected ? 'bg-white/10' : ''}`}
     >
-      <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${selected ? 'bg-[#FF2D78]/15 text-[#FF2D78]' : 'bg-white/5 text-white'}`}>
+      <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${selected ? 'bg-[#9C3FED]/15 text-[#9C3FED]' : 'bg-white/5 text-white'}`}>
         <VideoModelIcon family={entry.family} id={entry.id} className="size-4" />
       </span>
       <div className="flex-1 min-w-0">
@@ -828,7 +828,7 @@ function CatalogRow({ entry, selected, onPick }: { entry: VideoCatalogEntry; sel
           <span className="text-sm text-foreground font-medium">{entry.name}</span>
           {entry.hasAudio && <Volume2 className="w-3 h-3 text-muted-foreground" />}
           {entry.badge && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#FF2D78] text-white">
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#9C3FED] text-white">
               {entry.badge}
             </span>
           )}
@@ -842,7 +842,7 @@ function CatalogRow({ entry, selected, onPick }: { entry: VideoCatalogEntry; sel
           </span>
         </div>
       </div>
-      {selected && <Check className="w-4 h-4 text-[#FF2D78] shrink-0 mt-1" />}
+      {selected && <Check className="w-4 h-4 text-[#9C3FED] shrink-0 mt-1" />}
     </button>
   );
 }

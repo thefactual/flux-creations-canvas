@@ -216,12 +216,12 @@ export function PromptBar() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`relative rounded-[22px] ms-glass p-2.5 flex flex-col gap-2 transition-all ${
-          dragging ? 'ring-2 ring-[#FF2D78]' : ''
+          dragging ? 'ring-2 ring-[#9C3FED]' : ''
         }`}
       >
         {dragging && (
-          <div className="absolute inset-0 rounded-[22px] bg-[#FF2D78]/10 flex items-center justify-center z-10 pointer-events-none">
-            <span className="text-sm font-semibold text-[#FF2D78]">Drop images here</span>
+          <div className="absolute inset-0 rounded-[22px] bg-[#9C3FED]/10 flex items-center justify-center z-10 pointer-events-none">
+            <span className="text-sm font-semibold text-[#9C3FED]">Drop images here</span>
           </div>
         )}
 
@@ -464,7 +464,7 @@ export function PromptBar() {
                   }`}
                 >
                   {q}
-                  {quality === q && <Check className="w-4 h-4 text-[#FF2D78]" />}
+                  {quality === q && <Check className="w-4 h-4 text-[#9C3FED]" />}
                 </button>
               ))}
             </PopoverContent>
@@ -566,21 +566,21 @@ function ModelRow({
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/5 transition-colors ${selected ? 'bg-white/10' : ''}`}
     >
-      <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${selected ? 'bg-[#FF2D78]/15 text-[#FF2D78]' : 'bg-white/5 text-foreground/90'}`}>
+      <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${selected ? 'bg-[#9C3FED]/15 text-[#9C3FED]' : 'bg-white/5 text-foreground/90'}`}>
         <ModelIcon id={m.id} className="size-4" />
       </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-sm text-foreground">{m.name}</span>
           {m.badge && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FF2D78]/20 text-[#FF2D78]">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#9C3FED]/20 text-[#9C3FED]">
               {m.badge}
             </span>
           )}
         </div>
         <span className="text-xs text-muted-foreground truncate block">{m.desc}</span>
       </div>
-      {selected && <Check className="w-4 h-4 text-[#FF2D78] shrink-0" />}
+      {selected && <Check className="w-4 h-4 text-[#9C3FED] shrink-0" />}
     </button>
   );
 }
