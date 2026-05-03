@@ -1,4 +1,6 @@
 import { useGeneratorStore, MODELS } from '@/store/generatorStore';
+import { useVideoStore } from '@/store/videoStore';
+import { usePromptModeStore } from '@/store/promptModeStore';
 import { useCreateProjectsStore } from '@/store/createProjectsStore';
 import { useGridFilterStore } from '@/store/gridFilterStore';
 import { useLayoutStore, ZOOM_ROW_HEIGHTS } from '@/store/layoutStore';
