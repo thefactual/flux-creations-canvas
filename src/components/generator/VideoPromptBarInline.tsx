@@ -314,7 +314,7 @@ export function VideoPromptBarInline() {
           <Popover open={modelOpen} onOpenChange={(o) => { setModelOpen(o); if (!o) setExpandedFamily(null); }}>
             <PopoverTrigger asChild>
               <button className="ms-chip-glass flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs text-foreground transition-all">
-                <Film className="w-3.5 h-3.5 text-foreground/80" />
+                <VideoModelIcon family={catalogEntry?.family} id={model} className="w-3.5 h-3.5 text-white" />
                 {displayModelName}
                 <ChevronDownIcon className="size-3.5 text-muted-foreground/70" />
               </button>
