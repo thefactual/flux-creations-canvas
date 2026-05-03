@@ -835,6 +835,8 @@ function MarketingCard({ gen, createProjectId }: { gen: MSGeneration & { kind: '
       <div
         className="group relative w-full h-full overflow-hidden bg-ms-surface-2 cursor-pointer"
         onClick={() => !isPending && !isFailed && setSelected(true)}
+        onMouseEnter={(e) => { const v = e.currentTarget.querySelector('video'); v?.play().catch(() => {}); }}
+        onMouseLeave={(e) => { const v = e.currentTarget.querySelector('video'); if (v) { v.pause(); v.currentTime = 0.1; } }}
       >
         {gen.videoUrl && !isPending && !isFailed ? (
           <video
@@ -844,9 +846,7 @@ function MarketingCard({ gen, createProjectId }: { gen: MSGeneration & { kind: '
             loop
             playsInline
             preload="metadata"
-            onMouseEnter={(e) => e.currentTarget.play().catch(() => {})}
-            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0.1; }}
-            className="absolute inset-0 w-full h-full object-cover bg-[#0a0a0a]"
+            className="absolute inset-0 w-full h-full object-cover bg-[#0a0a0a] pointer-events-none"
           />
         ) : gen.thumbUrl && !isPending && !isFailed ? (
           <img src={gen.thumbUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
