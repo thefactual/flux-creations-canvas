@@ -370,11 +370,22 @@ export function PromptBar() {
           <button
             onClick={handleSubmit}
             disabled={!hasPromptContent}
-            className="ms-cta self-center flex items-center justify-center gap-2 h-[72px] px-7 rounded-2xl text-white text-[15px] font-bold disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            className="ms-cta relative overflow-hidden self-center flex items-center justify-center gap-2 h-[72px] px-7 rounded-2xl text-white text-[15px] font-bold disabled:opacity-50 disabled:cursor-not-allowed shrink-0 bg-black"
           >
-            Generate
-            <Sparkles className="w-4 h-4" />
-            <span className="text-[15px] font-bold opacity-95">{quantity}</span>
+            <video
+              src="/videos/generate-btn.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            />
+            <span className="absolute inset-0 bg-black/20 pointer-events-none" />
+            <span className="relative z-10 flex items-center gap-2">
+              Generate
+              <Sparkles className="w-4 h-4" />
+              <span className="text-[15px] font-bold opacity-95">{quantity}</span>
+            </span>
           </button>
         </div>
 
