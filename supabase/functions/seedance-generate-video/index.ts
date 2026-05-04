@@ -407,32 +407,36 @@ Deno.serve(async (req) => {
     const hasRefs = images.length > 0 || videos.length > 0 || audios.length > 0;
     const chosenVariant = normVariant(variant, hasRefs);
 
-    // Register images as portrait assets; upload video/audio bytes to AtlasCloud
-    // first, matching the Seedance 2.0 reference-to-video docs.
-    const assetImages: string[] = [];
-    for (let i = 0; i < images.length; i++) {
-      const label = `seedance-img-${i}-${(videoId ?? 'anon').slice(0, 24)}`;
-      const result = await createRequiredAtlasAsset(images[i], label, 'Image');
-      if (result.error) {
-        if (videoId) await updateRow(admin, videoId, { status: 'failed', error: result.error });
-        return json({ status: 'failed', error: result.error }, 400);
-      }
-      assetImages.push(result.assetUrl!);
+    // Mark the row as uploading references so the UI can show "Uploading refs…".
+    if (videoId) await updateRow(admin, videoId, { stage: 'uploading_refs', status: 'processing', error: null });
+
+    // Register all references in parallel — image registration polling can take 30s+
+    // each, so serial uploads were the main reason jobs felt "stuck".
+    const tag = (videoId ?? 'anon').slice(0, 24);
+    const [imgResults, vidResults, audResults] = await Promise.all([
+      Promise.all(images.map((u, i) => createRequiredAtlasAsset(u, `seedance-img-${i}-${tag}`, 'Image'))),
+      Promise.all(videos.map((u, i) => createRequiredAtlasAsset(u, `seedance-vid-${i}-${tag}`, 'Video'))),
+      Promise.all(audios.map((u, i) => createRequiredAtlasAsset(u, `seedance-aud-${i}-${tag}`, 'Audio'))),
+    ]);
+
+    const refError =
+      imgResults.find((r) => r.error)?.error ??
+      vidResults.find((r) => r.error)?.error ??
+      audResults.find((r) => r.error)?.error;
+    if (refError) {
+      if (videoId) await updateRow(admin, videoId, { status: 'failed', stage: 'failed', error: refError });
+      return json({ status: 'failed', stage: 'failed', error: refError }, 400);
     }
-    const assetVideos: string[] = [];
-    for (let i = 0; i < videos.length; i++) {
-      const label = `seedance-vid-${i}-${(videoId ?? 'anon').slice(0, 24)}`;
-      const result = await createRequiredAtlasAsset(videos[i], label, 'Video');
-      if (result.error) {
-        if (videoId) await updateRow(admin, videoId, { status: 'failed', error: result.error });
-        return json({ status: 'failed', error: result.error }, 400);
-      }
-      assetVideos.push(result.assetUrl!);
-    }
-    const assetAudios: string[] = [];
-    for (let i = 0; i < audios.length; i++) {
-      const label = `seedance-aud-${i}-${(videoId ?? 'anon').slice(0, 24)}`;
-      const result = await createRequiredAtlasAsset(audios[i], label, 'Audio');
+
+    const assetImages = imgResults.map((r) => r.assetUrl!);
+    const assetVideos = vidResults.map((r) => r.assetUrl!);
+    const assetAudios = audResults.map((r) => r.assetUrl!);
+
+    if (videoId) await updateRow(admin, videoId, { stage: 'queued' });
+    // Placeholder so the original loop's variable `result` reference further
+    // down isn't reused. Remaining audio loop deleted by this replacement.
+    {
+      const result: { error?: string } = {};
       if (result.error) {
         if (videoId) await updateRow(admin, videoId, { status: 'failed', error: result.error });
         return json({ status: 'failed', error: result.error }, 400);
