@@ -123,10 +123,19 @@ export function resolvePromptTags(
 
   // If the prompt looks like a video edit (verbs of replacement/addition + a
   // reference video attached), frame it explicitly so Seedance keeps the rest
-  // of the clip intact instead of free-generating.
+  // of the clip intact instead of free-generating. We split into two cases:
+  //   - PERSON swap: user wants to replace the human in the video → preserve
+  //     scene/motion/framing, BUT explicitly allow the person to change to
+  //     match the reference image. Never append "same person".
+  //   - PRODUCT/garment swap: preserve everything including the person.
   const hasEditVerb = /\b(replace|swap|change|put|add|remove|insert|turn|make .* into)\b/i.test(prompt);
+  const personSwap = /\b(replace|swap|change)\b[^.]{0,40}\b(girl|guy|woman|man|person|model|character|face|her|him|the\s+(model|subject|person))\b/i.test(prompt);
   if (hasEditVerb && counts.videos > 0) {
-    out = `Edit the reference video: ${out}. Keep everything else identical to the reference video — same person, same setting, same motion, same lighting.`;
+    if (personSwap && counts.images > 0) {
+      out = `Edit the reference video: ${out}. The person in the video must be replaced with the person shown in the reference image — match their face, hair, and skin tone exactly. Keep the setting, camera motion, framing, lighting, and body pose identical to the reference video. Only the person's identity changes.`;
+    } else {
+      out = `Edit the reference video: ${out}. Keep everything else identical to the reference video — same person, same setting, same motion, same lighting.`;
+    }
   }
 
   // Tidy doubled articles introduced by the substitution ("to this the first…")
