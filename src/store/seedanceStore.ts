@@ -363,6 +363,13 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
         description: 'Seedance moderation rejected the audio track — retried as visual-only.',
       });
     }
+    if (data?.usedFallback) {
+      toast.message('Switched to BytePlus', {
+        description: 'AtlasCloud was unavailable — generating directly via ByteDance ModelArk.',
+      });
+    }
+
+    const usedProvider: string = data?.provider ?? 'atlascloud';
 
     // Reset UI for next prompt; polling continues in background.
     set({ isSubmitting: false });
@@ -379,7 +386,7 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
         delay = Math.min(8000, delay + 250);
         try {
           const { data: poll } = await supabase.functions.invoke('seedance-generate-video', {
-            body: { action: 'poll', predictionId: data.taskId, videoId },
+            body: { action: 'poll', predictionId: data.taskId, videoId, provider: usedProvider },
           });
           if (poll?.status === 'complete') return;
           if (poll?.status === 'failed') {

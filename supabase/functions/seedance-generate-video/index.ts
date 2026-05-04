@@ -17,11 +17,18 @@ const corsHeaders = {
 };
 
 const ATLAS_KEY = Deno.env.get('ATLASCLOUD_API_KEY') ?? '';
+const BYTEPLUS_KEY = Deno.env.get('BYTEPLUS_ARK_API_KEY') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const ATLAS_BASE = 'https://api.atlascloud.ai/api/v1/model';
 const ATLAS_ASSETS_BASE = 'https://console.atlascloud.ai/api/v1';
+
+// BytePlus ModelArk (direct ByteDance) — fallback when AtlasCloud fails.
+// Docs: https://docs.byteplus.com/en/docs/ModelArk/1520757
+const BYTEPLUS_BASE = 'https://ark.ap-southeast.bytepluses.com/api/v3/contents/generations/tasks';
+const BYTEPLUS_MODEL = 'dreamina-seedance-2-0-260128';
+const BYTEPLUS_MODEL_FAST = 'dreamina-seedance-2-0-fast-260128';
 
 const SEEDANCE_REF = 'bytedance/seedance-2.0/reference-to-video';
 const SEEDANCE_TEXT = 'bytedance/seedance-2.0/text-to-video';
@@ -358,6 +365,85 @@ async function atlasSubmit(p: SubmitParams) {
   return { ok: true as const, predictionId: String(predictionId), endpoint: p.variant };
 }
 
+// ===== BytePlus ModelArk fallback =====
+// Submit a Seedance 2.0 job directly to ByteDance via ModelArk. Accepts public
+// HTTPS URLs in `content[]`, no asset registration required. Used when the
+// AtlasCloud path fails (balance, persistent moderation, timeout).
+async function byteplusSubmit(p: SubmitParams): Promise<{ ok: true; predictionId: string; endpoint: string } | { ok: false; error: string }> {
+  if (!BYTEPLUS_KEY) return { ok: false, error: 'BytePlus fallback not configured (BYTEPLUS_ARK_API_KEY missing).' };
+
+  const content: Array<Record<string, unknown>> = [];
+  if (p.prompt) content.push({ type: 'text', text: p.prompt });
+  for (const url of p.imageUrls) {
+    content.push({ type: 'image_url', image_url: { url }, role: 'reference_image' });
+  }
+  for (const url of p.videoUrls) {
+    content.push({ type: 'video_url', video_url: { url }, role: 'reference_video' });
+  }
+  for (const url of p.audioUrls) {
+    content.push({ type: 'audio_url', audio_url: { url }, role: 'reference_audio' });
+  }
+
+  const useFast = p.variant === SEEDANCE_FAST;
+  const body: Record<string, unknown> = {
+    model: useFast ? BYTEPLUS_MODEL_FAST : BYTEPLUS_MODEL,
+    content,
+    duration: p.duration,
+    resolution: normRes(p.resolution),
+    ratio: normRatio(p.ratio),
+    generate_audio: p.generateAudio,
+    watermark: false,
+  };
+
+  log('INFO', 'byteplus submit', {
+    model: body.model,
+    images: p.imageUrls.length,
+    videos: p.videoUrls.length,
+    audios: p.audioUrls.length,
+    duration: p.duration,
+    resolution: body.resolution,
+    ratio: body.ratio,
+    generateAudio: p.generateAudio,
+  });
+
+  const res = await fetch(BYTEPLUS_BASE, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${BYTEPLUS_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let parsed: any = {};
+  try { parsed = JSON.parse(text); } catch { /* keep text */ }
+  const taskId = parsed?.id;
+  if (!res.ok || !taskId) {
+    const rawMsg = parsed?.error?.message ?? parsed?.message ?? text ?? `http ${res.status}`;
+    log('WARN', 'byteplus submit failed', { status: res.status, body: text.slice(0, 400) });
+    return { ok: false, error: friendly(`BytePlus: ${rawMsg}`) };
+  }
+  return { ok: true, predictionId: String(taskId), endpoint: String(body.model) };
+}
+
+async function byteplusPoll(taskId: string) {
+  const res = await fetch(`${BYTEPLUS_BASE}/${taskId}`, {
+    headers: { Authorization: `Bearer ${BYTEPLUS_KEY}` },
+  });
+  const text = await res.text();
+  let parsed: any = {};
+  try { parsed = JSON.parse(text); } catch { /* keep text */ }
+  if (!res.ok) {
+    return { status: 'failed' as const, error: friendly(parsed?.error?.message ?? parsed?.message ?? text ?? `poll http ${res.status}`) };
+  }
+  const status = String(parsed?.status ?? '').toLowerCase();
+  if (status === 'succeeded') {
+    const videoUrl = parsed?.content?.video_url;
+    return videoUrl ? { status: 'done' as const, videoUrl: String(videoUrl) } : { status: 'failed' as const, error: 'BytePlus completed without a video URL' };
+  }
+  if (status === 'failed' || status === 'expired' || status === 'cancelled') {
+    return { status: 'failed' as const, error: friendly(parsed?.error?.message ?? `BytePlus reported ${status}`) };
+  }
+  return { status: 'processing' as const };
+}
+
 async function atlasPoll(predictionId: string) {
   const res = await fetch(`${ATLAS_BASE}/prediction/${predictionId}`, {
     headers: { Authorization: `Bearer ${ATLAS_KEY}` },
@@ -388,7 +474,7 @@ async function updateRow(admin: any, videoId: string, patch: Record<string, unkn
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-  if (!ATLAS_KEY) return json({ error: 'AtlasCloud is not configured. Add ATLASCLOUD_API_KEY.' }, 500);
+  if (!ATLAS_KEY && !BYTEPLUS_KEY) return json({ error: 'No Seedance provider configured (set ATLASCLOUD_API_KEY or BYTEPLUS_ARK_API_KEY).' }, 500);
 
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -399,9 +485,10 @@ Deno.serve(async (req) => {
     if (action === 'poll') {
       const predictionId = String(body.predictionId ?? body.taskId ?? '').trim();
       const videoId = String(body.videoId ?? '').trim();
+      const provider = String(body.provider ?? 'atlascloud').trim().toLowerCase();
       if (!predictionId) return json({ error: 'predictionId required' }, 400);
 
-      const out = await atlasPoll(predictionId);
+      const out = provider === 'byteplus' ? await byteplusPoll(predictionId) : await atlasPoll(predictionId);
       if (out.status === 'done') {
         if (videoId) await updateRow(admin, videoId, { status: 'complete', stage: 'complete', video_url: out.videoUrl, error: null });
         return json({ status: 'complete', stage: 'complete', videoUrl: out.videoUrl });
@@ -452,91 +539,128 @@ Deno.serve(async (req) => {
     // Mark the row as uploading references so the UI can show "Uploading refs…".
     if (videoId) await updateRow(admin, videoId, { stage: 'uploading_refs', status: 'processing', error: null });
 
-    // Register all references in parallel — image registration polling can take 30s+
-    // each, so serial uploads were the main reason jobs felt "stuck".
-    const tag = (videoId ?? 'anon').slice(0, 24);
-    const [imgResults, vidResults, audResults] = await Promise.all([
-      Promise.all(images.map((u, i) => createRequiredAtlasAsset(u, `seedance-img-${i}-${tag}`, 'Image'))),
-      Promise.all(videos.map((u, i) => createRequiredAtlasAsset(u, `seedance-vid-${i}-${tag}`, 'Video'))),
-      Promise.all(audios.map((u, i) => createRequiredAtlasAsset(u, `seedance-aud-${i}-${tag}`, 'Audio'))),
-    ]);
+    const safeDuration = clampDuration(duration);
+    const effectiveGenerateAudio = audios.length > 0 ? !!generateAudio : false;
 
-    const refError =
-      imgResults.find((r) => r.error)?.error ??
-      vidResults.find((r) => r.error)?.error ??
-      audResults.find((r) => r.error)?.error;
-    if (refError) {
-      if (videoId) await updateRow(admin, videoId, { status: 'failed', stage: 'failed', error: refError });
-      return json({ status: 'failed', stage: 'failed', error: refError }, 400);
-    }
+    // ===== Attempt 1: AtlasCloud (primary) =====
+    // Requires asset registration for images so face-moderation works. If any
+    // step fails and BytePlus is configured, we fall back to BytePlus which
+    // accepts public URLs directly.
+    const tryAtlas = async (): Promise<{ ok: true; predictionId: string; endpoint: string; provider: 'atlascloud'; audioFallbackUsed: boolean } | { ok: false; error: string }> => {
+      if (!ATLAS_KEY) return { ok: false, error: 'AtlasCloud not configured' };
 
-    const assetImages = imgResults.map((r) => r.assetUrl!);
-    const assetVideos = vidResults.map((r) => r.assetUrl!);
-    const assetAudios = audResults.map((r) => r.assetUrl!);
+      const tag = (videoId ?? 'anon').slice(0, 24);
+      const [imgResults, vidResults, audResults] = await Promise.all([
+        Promise.all(images.map((u, i) => createRequiredAtlasAsset(u, `seedance-img-${i}-${tag}`, 'Image'))),
+        Promise.all(videos.map((u, i) => createRequiredAtlasAsset(u, `seedance-vid-${i}-${tag}`, 'Video'))),
+        Promise.all(audios.map((u, i) => createRequiredAtlasAsset(u, `seedance-aud-${i}-${tag}`, 'Audio'))),
+      ]);
+      const refError =
+        imgResults.find((r) => r.error)?.error ??
+        vidResults.find((r) => r.error)?.error ??
+        audResults.find((r) => r.error)?.error;
+      if (refError) return { ok: false, error: refError };
+
+      const assetImages = imgResults.map((r) => r.assetUrl!);
+      const assetVideos = vidResults.map((r) => r.assetUrl!);
+      const assetAudios = audResults.map((r) => r.assetUrl!);
+
+      const resolvedPrompt = resolvePromptTags(promptText, {
+        images: assetImages.length, videos: assetVideos.length, audios: assetAudios.length,
+      });
+      log('INFO', 'resolved prompt', { original: promptText.slice(0, 200), resolved: resolvedPrompt.slice(0, 240) });
+
+      const baseSubmit = {
+        prompt: resolvedPrompt || 'The character in image 1 dances gracefully to the music',
+        imageUrls: assetImages,
+        videoUrls: assetVideos,
+        audioUrls: assetAudios,
+        duration: safeDuration,
+        resolution: normRes(resolution),
+        ratio: normRatio(ratio),
+        variant: chosenVariant,
+      };
+
+      let submission = await atlasSubmit({ ...baseSubmit, generateAudio: effectiveGenerateAudio });
+      let audioFallbackUsed = false;
+      if (!submission.ok && isGeneratedAudioModeration(submission.error)) {
+        audioFallbackUsed = true;
+        submission = await atlasSubmit({ ...baseSubmit, generateAudio: false });
+      }
+      if (!submission.ok) return { ok: false, error: submission.error };
+      return { ok: true, predictionId: submission.predictionId, endpoint: submission.endpoint, provider: 'atlascloud', audioFallbackUsed };
+    };
+
+    // ===== Attempt 2: BytePlus ModelArk (fallback, direct ByteDance) =====
+    // Accepts raw HTTPS URLs in content[]. No asset registration step.
+    const tryByteplus = async (): Promise<{ ok: true; predictionId: string; endpoint: string; provider: 'byteplus'; audioFallbackUsed: boolean } | { ok: false; error: string }> => {
+      if (!BYTEPLUS_KEY) return { ok: false, error: 'BytePlus fallback not configured' };
+
+      // Resolve @-tags using raw counts (no asset registration here).
+      const resolvedPrompt = resolvePromptTags(promptText, {
+        images: images.length, videos: videos.length, audios: audios.length,
+      });
+      log('INFO', 'byteplus resolved prompt', { resolved: resolvedPrompt.slice(0, 240) });
+
+      const baseSubmit = {
+        prompt: resolvedPrompt || 'The character in image 1 dances gracefully to the music',
+        imageUrls: images,
+        videoUrls: videos,
+        audioUrls: audios,
+        duration: safeDuration,
+        resolution: normRes(resolution),
+        ratio: normRatio(ratio),
+        variant: chosenVariant,
+      };
+      let submission = await byteplusSubmit({ ...baseSubmit, generateAudio: effectiveGenerateAudio });
+      let audioFallbackUsed = false;
+      if (!submission.ok && isGeneratedAudioModeration(submission.error)) {
+        audioFallbackUsed = true;
+        submission = await byteplusSubmit({ ...baseSubmit, generateAudio: false });
+      }
+      if (!submission.ok) return { ok: false, error: submission.error };
+      return { ok: true, predictionId: submission.predictionId, endpoint: submission.endpoint, provider: 'byteplus', audioFallbackUsed };
+    };
 
     if (videoId) await updateRow(admin, videoId, { stage: 'queued' });
 
-    // Generated audio has been the latest hard failure for image+video jobs.
-    // Keep multimodal reference jobs visual-first unless the user supplied audio.
-    const effectiveGenerateAudio = audios.length > 0 ? !!generateAudio : false;
-
-    const safeDuration = clampDuration(duration);
-
-    // Resolve any leftover @-tags (client should already have done this, but
-    // retries / direct API calls can land here with raw tokens).
-    const resolvedPrompt = resolvePromptTags(promptText, {
-      images: assetImages.length, videos: assetVideos.length, audios: assetAudios.length,
-    });
-    log('INFO', 'resolved prompt', { original: promptText.slice(0, 200), resolved: resolvedPrompt.slice(0, 240) });
-
-    const baseSubmit = {
-      prompt: resolvedPrompt || 'The character in image 1 dances gracefully to the music',
-      imageUrls: assetImages,
-      videoUrls: assetVideos,
-      audioUrls: assetAudios,
-      duration: safeDuration,
-      resolution: normRes(resolution),
-      ratio: normRatio(ratio),
-      variant: chosenVariant,
-    };
-
-    let submission = await atlasSubmit({ ...baseSubmit, generateAudio: effectiveGenerateAudio });
-    let audioFallbackUsed = false;
-
-    // Auto-retry visual-only on ANY audio-moderation failure, not just when the
-    // user explicitly enabled audio. AtlasCloud sometimes flags generated audio
-    // even when the request had generate_audio=false, so we retry once.
-    if (!submission.ok && isGeneratedAudioModeration(submission.error)) {
-      audioFallbackUsed = true;
-      submission = await atlasSubmit({ ...baseSubmit, generateAudio: false });
-    }
-
-    if (!submission.ok) {
-      log('WARN', 'submit failed', { err: submission.error });
-      if (videoId) await updateRow(admin, videoId, { status: 'failed', stage: 'failed', error: submission.error });
-      return json({ status: 'failed', stage: 'failed', error: submission.error });
+    let result = await tryAtlas();
+    let usedFallback = false;
+    if (!result.ok) {
+      log('WARN', 'atlas failed, trying byteplus', { err: result.error });
+      const fallback = await tryByteplus();
+      if (fallback.ok) {
+        result = fallback;
+        usedFallback = true;
+      } else {
+        // Both failed — surface the AtlasCloud error (more user-friendly).
+        const finalErr = result.error;
+        if (videoId) await updateRow(admin, videoId, { status: 'failed', stage: 'failed', error: finalErr });
+        return json({ status: 'failed', stage: 'failed', error: finalErr });
+      }
     }
 
     if (videoId) {
       await updateRow(admin, videoId, {
-        provider: 'atlascloud',
-        task_id: submission.predictionId,
+        provider: result.provider,
+        task_id: result.predictionId,
         status: 'processing',
         stage: 'processing',
         error: null,
       });
     }
 
-    log('INFO', 'submit ok', { predictionId: submission.predictionId, endpoint: submission.endpoint, audioFallbackUsed });
+    log('INFO', 'submit ok', { provider: result.provider, predictionId: result.predictionId, endpoint: result.endpoint, usedFallback, audioFallbackUsed: result.audioFallbackUsed });
 
     return json({
       submitted: true,
-      provider: 'atlascloud',
-      taskId: submission.predictionId,
-      endpoint: submission.endpoint,
+      provider: result.provider,
+      taskId: result.predictionId,
+      endpoint: result.endpoint,
       status: 'processing',
       stage: 'processing',
-      audioFallbackUsed,
+      audioFallbackUsed: result.audioFallbackUsed,
+      usedFallback,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
