@@ -449,9 +449,7 @@ Deno.serve(async (req) => {
     // Keep multimodal reference jobs visual-first unless the user supplied audio.
     const effectiveGenerateAudio = audios.length > 0 ? !!generateAudio : false;
 
-    const requestedDuration = clampDuration(duration);
-    const maxSafeDuration = videos.length > 0 ? 12 : 15;
-    const safeDuration = requestedDuration === -1 ? -1 : Math.min(requestedDuration, maxSafeDuration);
+    const safeDuration = clampDuration(duration);
 
     const baseSubmit = {
       prompt: promptText || 'The character in image 1 dances gracefully to the music',

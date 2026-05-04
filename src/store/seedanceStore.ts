@@ -162,15 +162,6 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
         });
         return;
       }
-      if (kind === 'video' && media.width && media.height) {
-        const shortEdge = Math.min(media.width, media.height);
-        if (![480, 720].includes(shortEdge)) {
-          toast.error('Unsupported video resolution', {
-            description: `Seedance reference videos must be 480p or 720p MP4/MOV — got ${media.width}×${media.height}.`,
-          });
-          return;
-        }
-      }
       const url = await readFileToDataUrl(file);
       const asset: SeedanceAsset = {
         id: nextTagId(list, kind), kind, name: file.name, url, durationSec: dur,
@@ -237,15 +228,7 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
 
     const videoId = crypto.randomUUID();
     const allRefs = [...imageUrls, ...videoUrls, ...audioUrls];
-    const requestedDuration = Number(s.duration);
-    const effectiveDuration = s.videos.length > 0 && Number.isFinite(requestedDuration)
-      ? String(Math.min(requestedDuration, 12))
-      : s.duration;
-    if (effectiveDuration !== s.duration) {
-      toast.message('Duration adjusted', {
-        description: 'Reference-video jobs are capped at 12s for Seedance reliability.',
-      });
-    }
+    const effectiveDuration = s.duration;
 
     // Insert a row up-front so the Create Video grid shows a placeholder.
     try {
