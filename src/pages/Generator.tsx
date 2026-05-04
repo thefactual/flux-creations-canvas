@@ -47,6 +47,33 @@ export default function Generator() {
     loadVideoHistory(activeProjectId);
   }, [activeProjectId, loadHistory, loadVideoHistory]);
 
+  // Realtime: instant queued → complete updates for images & videos in the
+  // active /create project. Auto-reconnects on socket errors / tab refocus.
+  const upsertImage = useGeneratorStore((s) => s.upsertFromRealtime);
+  const removeImage = useGeneratorStore((s) => s.removeById);
+  const upsertVideo = useVideoStore((s) => s.upsertFromRealtime);
+  const removeVideo = useVideoStore((s) => s.removeById);
+
+  useRealtimeTable(
+    {
+      table: 'generations',
+      filter: activeProjectId ? { column: 'create_project_id', value: activeProjectId } : undefined,
+      channelKey: `gen:${activeProjectId ?? 'none'}`,
+      enabled: !!activeProjectId,
+    },
+    { onUpsert: upsertImage, onDelete: (row) => removeImage(row.id) },
+  );
+
+  useRealtimeTable(
+    {
+      table: 'video_generations',
+      filter: activeProjectId ? { column: 'create_project_id', value: activeProjectId } : undefined,
+      channelKey: `vid:${activeProjectId ?? 'none'}`,
+      enabled: !!activeProjectId,
+    },
+    { onUpsert: upsertVideo, onDelete: (row) => removeVideo(row.id) },
+  );
+
   // URL slug is the source of truth when present; this prevents active-project
   // state and route state from bouncing each other during project switches.
   useEffect(() => {
