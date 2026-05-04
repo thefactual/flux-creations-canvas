@@ -433,22 +433,12 @@ Deno.serve(async (req) => {
     const assetAudios = audResults.map((r) => r.assetUrl!);
 
     if (videoId) await updateRow(admin, videoId, { stage: 'queued' });
-    // Placeholder so the original loop's variable `result` reference further
-    // down isn't reused. Remaining audio loop deleted by this replacement.
-    {
-      const result: { error?: string } = {};
-      if (result.error) {
-        if (videoId) await updateRow(admin, videoId, { status: 'failed', error: result.error });
-        return json({ status: 'failed', error: result.error }, 400);
-      }
-      assetAudios.push(result.assetUrl!);
-    }
 
     // Generated audio has been the latest hard failure for image+video jobs.
     // Keep multimodal reference jobs visual-first unless the user supplied audio.
     const effectiveGenerateAudio = audios.length > 0 ? !!generateAudio : false;
 
-    let submission = await atlasSubmit({
+    const baseSubmit = {
       prompt: promptText || 'The character in image 1 dances gracefully to the music',
       imageUrls: assetImages,
       videoUrls: assetVideos,
@@ -456,28 +446,24 @@ Deno.serve(async (req) => {
       duration: clampDuration(duration),
       resolution: normRes(resolution),
       ratio: normRatio(ratio),
-      generateAudio: effectiveGenerateAudio,
       variant: chosenVariant,
-    });
+    };
 
-    if (!submission.ok && isGeneratedAudioModeration(submission.error) && effectiveGenerateAudio) {
-      submission = await atlasSubmit({
-        prompt: promptText || 'The character in image 1 dances gracefully to the music',
-        imageUrls: assetImages,
-        videoUrls: assetVideos,
-        audioUrls: assetAudios,
-        duration: clampDuration(duration),
-        resolution: normRes(resolution),
-        ratio: normRatio(ratio),
-        generateAudio: false,
-        variant: chosenVariant,
-      });
+    let submission = await atlasSubmit({ ...baseSubmit, generateAudio: effectiveGenerateAudio });
+    let audioFallbackUsed = false;
+
+    // Auto-retry visual-only on ANY audio-moderation failure, not just when the
+    // user explicitly enabled audio. AtlasCloud sometimes flags generated audio
+    // even when the request had generate_audio=false, so we retry once.
+    if (!submission.ok && isGeneratedAudioModeration(submission.error)) {
+      audioFallbackUsed = true;
+      submission = await atlasSubmit({ ...baseSubmit, generateAudio: false });
     }
 
     if (!submission.ok) {
       log('WARN', 'submit failed', { err: submission.error });
-      if (videoId) await updateRow(admin, videoId, { status: 'failed', error: submission.error });
-      return json({ status: 'failed', error: submission.error });
+      if (videoId) await updateRow(admin, videoId, { status: 'failed', stage: 'failed', error: submission.error });
+      return json({ status: 'failed', stage: 'failed', error: submission.error });
     }
 
     if (videoId) {
