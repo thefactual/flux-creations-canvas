@@ -569,6 +569,7 @@ export type Database = {
           reference_images: string[] | null
           resolution: string | null
           response_url: string | null
+          stage: string | null
           status: string
           status_url: string | null
           task_id: string | null
@@ -591,6 +592,7 @@ export type Database = {
           reference_images?: string[] | null
           resolution?: string | null
           response_url?: string | null
+          stage?: string | null
           status?: string
           status_url?: string | null
           task_id?: string | null
@@ -613,6 +615,7 @@ export type Database = {
           reference_images?: string[] | null
           resolution?: string | null
           response_url?: string | null
+          stage?: string | null
           status?: string
           status_url?: string | null
           task_id?: string | null

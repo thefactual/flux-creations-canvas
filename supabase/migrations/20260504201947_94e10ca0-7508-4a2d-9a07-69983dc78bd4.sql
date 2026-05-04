@@ -1,0 +1,1 @@
+ALTER TABLE public.video_generations ADD COLUMN IF NOT EXISTS stage text;
