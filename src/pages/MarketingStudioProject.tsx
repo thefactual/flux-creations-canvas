@@ -8,6 +8,7 @@ import { VideoDetailModal } from '@/components/marketingstudio/VideoDetailModal'
 import { FailedGenerationPanel } from '@/components/marketingstudio/FailedGenerationPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
+import { useGenerationProgress } from '@/hooks/useGenerationProgress';
 import { toast } from '@/hooks/use-toast';
 
 const minProviderTimeoutMs = (duration?: string) => {
@@ -367,8 +368,6 @@ export default function MarketingStudioProject() {
             {items.map((g) => {
               const isPending = isGenerationPending(g);
               const isFailed = g.status === 'failed';
-              const elapsed = Math.floor((Date.now() - (g.submittedAt || g.createdAt)) / 1000);
-              const pct = Math.min(95, Math.floor((elapsed / 120) * 100)); // fake progress to 95% over 2min
               return (
                 <button
                   key={g.id}
@@ -396,24 +395,7 @@ export default function MarketingStudioProject() {
                     <div className="absolute inset-0 bg-[#0a0a0a]" />
                   )}
 
-                  {isPending && (
-                    <>
-                      <div className="absolute inset-0 ms-shimmer opacity-40" />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-foreground/90 px-3">
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        <div className="text-[11px] font-medium tracking-wide uppercase text-center">
-                          {stageLabel(g)}
-                        </div>
-                        <div className="w-3/4 h-1 rounded-full bg-white/10 overflow-hidden">
-                          <div
-                            className="h-full bg-foreground/80 transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">{elapsed}s</div>
-                      </div>
-                    </>
-                  )}
+                  {isPending && <PendingOverlay g={g} />}
 
                   {isFailed && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-foreground/90 px-3 text-center">
@@ -503,5 +485,37 @@ export default function MarketingStudioProject() {
         onRetry={(g) => handleRetry(g)}
       />
     </MarketingStudioLayout>
+  );
+}
+
+/** Realtime, model-aware progress bar for queued/running marketing generations. */
+function PendingOverlay({ g }: { g: MSGeneration }) {
+  const { pct, elapsed } = useGenerationProgress({
+    kind: 'marketing',
+    startedAt: g.submittedAt || g.createdAt,
+    isComplete: g.status === 'done' || (!!g.videoUrl && g.status !== 'failed'),
+    isFailed: g.status === 'failed',
+    hint: g.stage,
+    durationSeconds: parseInt((g.duration || '8s').replace(/[^0-9]/g, ''), 10) || 8,
+  });
+  return (
+    <>
+      <div className="absolute inset-0 ms-shimmer opacity-40" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-foreground/90 px-3">
+        <Loader2 className="w-6 h-6 animate-spin" />
+        <div className="text-[11px] font-medium tracking-wide uppercase text-center">
+          {stageLabel(g)}
+        </div>
+        <div className="w-3/4 h-1.5 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full bg-foreground/90 transition-[width] duration-700 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="text-[10px] tabular-nums text-muted-foreground">
+          {Math.round(pct)}% · {elapsed}s
+        </div>
+      </div>
+    </>
   );
 }
