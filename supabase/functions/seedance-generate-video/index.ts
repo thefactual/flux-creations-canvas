@@ -260,6 +260,23 @@ type SubmitParams = {
   variant: string;
 };
 
+function splitRefsByType(refs: unknown[]) {
+  const raw = uniqueUrls(refs, 18);
+  const imageUrls: string[] = [];
+  const videoUrls: string[] = [];
+  const audioUrls: string[] = [];
+  for (const url of raw) {
+    if (looksLikeVideo(url)) videoUrls.push(url);
+    else if (looksLikeAudio(url)) audioUrls.push(url);
+    else imageUrls.push(url);
+  }
+  return {
+    imageUrls: imageUrls.slice(0, 9),
+    videoUrls: videoUrls.slice(0, 3),
+    audioUrls: audioUrls.slice(0, 3),
+  };
+}
+
 async function atlasSubmit(p: SubmitParams) {
   const body: Record<string, unknown> = {
     model: p.variant,
@@ -285,7 +302,9 @@ async function atlasSubmit(p: SubmitParams) {
     duration: p.duration,
     resolution: p.resolution,
     ratio: p.ratio,
+    generateAudio: p.generateAudio,
     sampleImages: p.imageUrls.slice(0, 3).map((u) => (String(u).startsWith('asset://') ? u : `RAW:${String(u).slice(0, 80)}`)),
+    sampleVideos: p.videoUrls.slice(0, 3).map((u) => (String(u).startsWith('asset://') ? u : `RAW:${String(u).slice(0, 80)}`)),
   });
 
   const res = await fetch(`${ATLAS_BASE}/generateVideo`, {
