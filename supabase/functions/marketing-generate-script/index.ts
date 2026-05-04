@@ -707,8 +707,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ---------- Roll persona ----------
-    const persona = rollPersona();
+    // ---------- Roll persona (energy-aware) ----------
+    // Low-energy personas (deadpan / quiet-luxury) only unlock for premium / quiet-luxury
+    // products. Default UGC should feel high-energy "showing a friend" — never editorial.
+    const productEnergy = (productMeta?.vision_analysis as any)?.product_energy;
+    const lowEnergyPersonaIds = ['dry-deadpan', 'quiet-luxury'];
+    const eligiblePersonas =
+      productEnergy === 'premium' || productEnergy === 'quiet-luxury'
+        ? PERSONAS
+        : PERSONAS.filter((p) => !lowEnergyPersonaIds.includes(p.id));
+    const persona = eligiblePersonas[Math.floor(Math.random() * eligiblePersonas.length)];
     const personaBlock = `CREATOR_PERSONA: ${persona.id} — ${persona.name}\nVOICE GUIDE: ${persona.voice}\n`;
 
     // ---------- POV hands branch ----------
@@ -814,6 +822,9 @@ Deno.serve(async (req) => {
       // Duration spec FIRST so it dominates everything that follows.
       `${durationSpec}\n` +
       `SELECTED_FORMAT: ${format || 'UGC'} — apply the matching format module from the system prompt verbatim. Do NOT mix in beats from other formats.\n` +
+      ((format || 'UGC') === 'UGC'
+        ? `ENERGY_DIRECTIVE: This is a UGC ad. The avatar speaks in EVERY beat. There is no silent deadpan. Every beat has dialogue. The hook is spoken out loud. The verdict is spoken out loud. The avatar is showing a friend something they genuinely love — not posing for an editorial.\n`
+        : '') +
       `ASPECT: ${aspect}\n` +
       `DURATION: ${durSec}s\n\n` +
       `${personaBlock}\n` +
