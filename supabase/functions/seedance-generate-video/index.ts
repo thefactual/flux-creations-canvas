@@ -121,9 +121,9 @@ function toWsrvJpg(rawUrl: string, w = 1024, h = 1024): string {
   return `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=${w}&h=${h}&fit=cover&output=jpg&q=85`;
 }
 
-// Register an image as a portrait asset on AtlasCloud. Returns asset:// URI
-// or null on failure. We register every reference image so identity-bearing
-// shots (faces) reliably pass Seedance's "real person" moderator.
+// Register prompt-bar uploads as AtlasCloud assets. Returns asset:// URI or
+// null on failure. We require image/video references to be assets so Seedance
+// never receives raw user-upload storage URLs that trigger real-person moderation.
 async function createAtlasAsset(
   rawUrl: string,
   label: string,
@@ -167,6 +167,17 @@ async function createAtlasAsset(
   }
   log('WARN', 'asset timeout', { id, label });
   return null;
+}
+
+async function createRequiredAtlasAsset(
+  rawUrl: string,
+  label: string,
+  assetType: 'Image' | 'Video',
+): Promise<{ assetUrl?: string; error?: string }> {
+  const assetUrl = await createAtlasAsset(rawUrl, label, assetType);
+  if (assetUrl?.startsWith('asset://')) return { assetUrl };
+  const media = assetType === 'Video' ? 'reference video' : 'reference image';
+  return { error: `AtlasCloud could not register the ${media} as an asset. Retry with a shorter/smaller upload or remove that reference.` };
 }
 
 type SubmitParams = {
@@ -319,14 +330,22 @@ Deno.serve(async (req) => {
     const assetImages: string[] = [];
     for (let i = 0; i < images.length; i++) {
       const label = `seedance-img-${i}-${(videoId ?? 'anon').slice(0, 24)}`;
-      const asset = await createAtlasAsset(images[i], label, 'Image');
-      assetImages.push(asset ?? images[i]);
+      const result = await createRequiredAtlasAsset(images[i], label, 'Image');
+      if (result.error) {
+        if (videoId) await updateRow(admin, videoId, { status: 'failed', error: result.error });
+        return json({ status: 'failed', error: result.error }, 400);
+      }
+      assetImages.push(result.assetUrl!);
     }
     const assetVideos: string[] = [];
     for (let i = 0; i < videos.length; i++) {
       const label = `seedance-vid-${i}-${(videoId ?? 'anon').slice(0, 24)}`;
-      const asset = await createAtlasAsset(videos[i], label, 'Video');
-      assetVideos.push(asset ?? videos[i]);
+      const result = await createRequiredAtlasAsset(videos[i], label, 'Video');
+      if (result.error) {
+        if (videoId) await updateRow(admin, videoId, { status: 'failed', error: result.error });
+        return json({ status: 'failed', error: result.error }, 400);
+      }
+      assetVideos.push(result.assetUrl!);
     }
 
     const submission = await atlasSubmit({
