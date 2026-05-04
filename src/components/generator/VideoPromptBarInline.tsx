@@ -787,8 +787,8 @@ function AspectIcon({ ratio, className = '' }: { ratio: string; className?: stri
 // Single wide upload tile (Veo 3.1 Lite, Grok Imagine, Sora 2…)
 // =============================================================
 function SingleUploadTile({
-  optional, url, onUpload, onRemove, onDropFile,
-}: { optional?: boolean; url?: string; onUpload: () => void; onRemove: () => void; onDropFile?: (f: File) => void }) {
+  optional, url, onUpload, onRemove, onDropFile, tag,
+}: { optional?: boolean; url?: string; onUpload: () => void; onRemove: () => void; onDropFile?: (f: File) => void; tag?: string }) {
   const [over, setOver] = useState(false);
   const dropProps = {
     onDragOver: (e: React.DragEvent) => { e.preventDefault(); setOver(true); },
@@ -809,6 +809,11 @@ function SingleUploadTile({
         >
           <X className="w-3.5 h-3.5" />
         </button>
+        {tag && (
+          <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-[#9C3FED] text-white text-[10px] font-bold font-mono">
+            @{tag}
+          </span>
+        )}
       </div>
     );
   }
@@ -828,6 +833,7 @@ function SingleUploadTile({
         Upload image or <span className="text-white underline underline-offset-2">generate it</span>
       </div>
       <div className="text-[9px] text-muted-foreground/70 text-center">PNG, JPG or paste</div>
+      {tag && <div className="text-[10px] text-muted-foreground/70 font-mono">@{tag}</div>}
     </button>
   );
 }
