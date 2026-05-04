@@ -232,13 +232,6 @@ export function SeedancePromptBar() {
                 />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  onClick={() => setGenerateAudio(!generateAudio)}
-                  className={`flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] transition-colors ${generateAudio ? 'text-white' : 'text-white/50'}`}
-                >
-                  {generateAudio ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-                  Sound {generateAudio ? 'on' : 'off'}
-                </button>
                 {totalRefs > 0 && (
                   <span className="text-[11px] text-muted-foreground">
                     {totalRefs} reference{totalRefs > 1 ? 's' : ''} attached
