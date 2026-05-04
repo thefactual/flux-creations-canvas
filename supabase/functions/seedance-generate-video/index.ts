@@ -540,7 +540,10 @@ Deno.serve(async (req) => {
     if (videoId) await updateRow(admin, videoId, { stage: 'uploading_refs', status: 'processing', error: null });
 
     const safeDuration = clampDuration(duration);
-    const effectiveGenerateAudio = !!generateAudio;
+    // Sound is permanently disabled — Seedance's generated audio is moderation-prone
+    // and frequently flags otherwise-valid videos. Keep it off until we move to a
+    // dedicated audio model (e.g. ElevenLabs) post-render.
+    const effectiveGenerateAudio = false;
 
     // ===== Attempt 1: AtlasCloud (primary) =====
     // Requires asset registration for images so face-moderation works. If any
