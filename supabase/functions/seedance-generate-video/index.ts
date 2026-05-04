@@ -5,7 +5,7 @@
 // Endpoints used:
 //   POST  https://api.atlascloud.ai/api/v1/model/generateVideo
 //   GET   https://api.atlascloud.ai/api/v1/model/prediction/{id}
-//   POST  https://api.atlascloud.ai/api/v1/model/sd/assets   (reference asset registration)
+//   POST  https://console.atlascloud.ai/api/v1/sd/assets   (reference asset registration)
 //
 // Reference: https://www.atlascloud.ai/models/bytedance/seedance-2.0/reference-to-video
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
