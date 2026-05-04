@@ -660,7 +660,20 @@ Deno.serve(async (req) => {
     const atlasRatio = normalizeAtlasRatio(aspect);
     const extraImageUrls = Array.isArray(image_urls) ? uniqueValidUrls(image_urls, 9) : [];
     const audioSourceUrls = await gatherAudioSourceUrls(admin, { avatarId, format });
-    const bundle = await buildReferenceBundle(admin, { productId, avatarId, extraImageUrls, audioSourceUrls });
+
+    // Resolve the keyframe URL: prefer explicit body param (from orchestrator),
+    // fall back to the value already stored on the row (retry path).
+    let keyframeUrl: string | null = (body.keyframe_url as string | null) ?? null;
+    if (!keyframeUrl && reuseGenerationId) {
+      const { data: existingRow } = await admin
+        .from('ms_generations')
+        .select('keyframe_url, keyframe_path')
+        .eq('id', reuseGenerationId)
+        .maybeSingle();
+      if (existingRow?.keyframe_url) keyframeUrl = existingRow.keyframe_url as string;
+    }
+
+    const bundle = await buildReferenceBundle(admin, { productId, avatarId, extraImageUrls, audioSourceUrls, keyframeUrl });
 
     log('INFO', 'submit: bundle built', {
       mode: bundle.mode,
@@ -668,15 +681,14 @@ Deno.serve(async (req) => {
       refAudios: bundle.referenceAudios.length,
       hasAvatar: bundle.hasAvatar,
       hasProduct: bundle.hasProduct,
+      hasKeyframe: !!keyframeUrl,
       providerOrder: providerOrder(bundle),
     });
 
     let row: any;
-    const rowPayload = {
+    const rowPayload: Record<string, unknown> = {
       prompt,
       script_text: script_text ?? null,
-      keyframe_url: null,
-      keyframe_path: null,
       reference_paths: bundle.referenceImages,
       status: 'queued',
       stage: 'videoing',
@@ -690,6 +702,11 @@ Deno.serve(async (req) => {
       duration_seconds: duration,
       resolution: normalizeAtlasResolution(resolution),
     };
+    // Only overwrite keyframe fields if we explicitly received one — never
+    // wipe a successfully composed keyframe on retry / re-submit.
+    if (keyframeUrl) {
+      rowPayload.keyframe_url = keyframeUrl;
+    }
 
     if (reuseGenerationId) {
       const { data: updated, error } = await admin.from('ms_generations').update(rowPayload).eq('id', reuseGenerationId).select().single();
