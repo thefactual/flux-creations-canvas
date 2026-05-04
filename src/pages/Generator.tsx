@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PromptBar } from '@/components/generator/PromptBar';
 import { VideoPromptBarInline } from '@/components/generator/VideoPromptBarInline';
+import { SeedancePromptBar } from '@/components/generator/SeedancePromptBar';
 import { PromptBar as MarketingPromptBar } from '@/components/marketingstudio/PromptBar';
 import { PromptNavBar } from '@/components/PromptNavBar';
 import { CreateSidebar } from '@/components/generator/CreateSidebar';
@@ -120,7 +121,11 @@ export default function Generator() {
         />
       );
     }
-    if (mode === 'video') return <VideoPromptBarInline />;
+    if (mode === 'video') {
+      const sub = usePromptModeStore.getState().videoSubMode;
+      if (sub === 'seedance-2') return <SeedancePromptBar />;
+      return <VideoPromptBarInline />;
+    }
     return <PromptBar />;
   };
 
