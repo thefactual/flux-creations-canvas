@@ -440,11 +440,7 @@ Deno.serve(async (req) => {
         finalPrompt = applyAntiReplicationDirective(finalPrompt, { hasAvatar: !!avatarId, hasProduct: !!productId });
         const voiceoverText = scriptPayload?.voiceover_script || extractSpokenLines(finalPrompt);
 
-        // 4d) Persist script + advance stage to 'keyframing'. The keyframer
-        // composes a single 9:16 still showing the avatar IN the scripted
-        // scene holding the product — Seedance then animates THIS frame
-        // instead of the avatar headshot, which is what causes the
-        // "avatar reference photo gets animated" slop.
+        // 4d) Persist script + advance stage to 'videoing'.
         await admin
           .from('ms_generations')
           .update({
@@ -453,43 +449,15 @@ Deno.serve(async (req) => {
             script_text: voiceoverText || finalPrompt,
             script_persona: scriptPersona,
             reference_paths: refs,
-            stage: 'keyframing',
+            stage: 'videoing',
           })
           .eq('id', generationId);
 
-        // 4e) Compose the keyframe (Nano Banana Pro → Nano Banana 2 fallback).
-        // The function ALWAYS returns 200 even on failure and self-degrades by
-        // setting stage='videoing' with keyframe_url=null, so we just await it
-        // and read back the row to get whatever it produced.
-        let keyframeUrl: string | null = null;
-        try {
-          await invokeFn('marketing-generate-keyframe', { generation_id: generationId });
-          const { data: refreshed } = await admin
-            .from('ms_generations')
-            .select('keyframe_url')
-            .eq('id', generationId)
-            .maybeSingle();
-          keyframeUrl = (refreshed?.keyframe_url as string | null) ?? null;
-        } catch (e) {
-          console.warn('[orchestrate] keyframe step failed, continuing without it:', e);
-        }
-
-        // Move to videoing regardless of keyframe outcome.
-        await admin
-          .from('ms_generations')
-          .update({ stage: 'videoing' })
-          .eq('id', generationId);
-
-        // 4f) Submit to the video function. If we got a keyframe, prepend it
-        // so it lands in image_urls[0] — the scene anchor Seedance will
-        // animate. Avatar + product images follow as identity locks only.
-        const videoImageUrls = keyframeUrl ? [keyframeUrl, ...refs] : refs;
-
+        // 4e) Submit to the video function with avatar + product images as references.
         const vidRes = await invokeFn('marketing-generate-video', {
           reuseGenerationId: generationId,
           prompt: finalPrompt,
-          image_urls: videoImageUrls,
-          keyframe_url: keyframeUrl,
+          image_urls: refs,
           aspect: ratio,
           duration_seconds: duration_seconds_final,
           resolution,
