@@ -305,16 +305,18 @@ async function buildReferenceBundle(admin: any, opts: {
     return !isAvatarStorageUrl(url);
   });
 
+  // Identity-first ordering: avatar [0] wins Seedance facial identity arbitration.
+  // Keyframe [1] still seeds scene/composition. Product references follow.
   const orderedRefs = opts.keyframeUrl
     ? uniqueValidUrls([
-        opts.keyframeUrl,
         ...(avatarUrl ? [avatarUrl] : []),
+        opts.keyframeUrl,
         ...productUrls,
         ...extraImageUrls,
       ], 9)
     : uniqueValidUrls([
-        ...productUrls,
         ...(avatarUrl ? [avatarUrl] : []),
+        ...productUrls,
         ...extraImageUrls,
       ], 9);
 
@@ -339,32 +341,21 @@ async function buildReferenceBundle(admin: any, opts: {
 function withReferenceMap(prompt: string, bundle: ReferenceBundle) {
   if (bundle.mode !== 'reference-to-video' || bundle.referenceImages.length === 0) return prompt;
   const lines: string[] = [];
-  const firstUrl = bundle.referenceImages[0] || '';
-  const hasKeyframe = firstUrl.includes('ms-keyframes');
+  const refs = bundle.referenceImages;
+  const hasAvatarFirst = bundle.hasAvatar && refs[0]?.includes('ms-avatars');
+  const hasKeyframe = refs.some((u) => u.includes('ms-keyframes'));
 
-  if (hasKeyframe) {
-    lines.push('Reference map: image 1 is the COMPOSED SCENE — animate THIS frame. The avatar is already positioned, the product is already in their hands, the lighting and setting are already established. Treat image 1 as the first frame of the video.');
-    if (bundle.hasAvatar) {
-      lines.push('The remaining images are identity locks: the avatar reference is for FACIAL LIKENESS ONLY — do NOT recreate its background, wardrobe, room, pose, or composition. The product references lock product shape, color, material, packaging, and visible details exactly.');
-    } else {
-      lines.push('The remaining images are product references — preserve product shape, color, material, packaging, and visible details exactly.');
-    }
+  if (hasAvatarFirst && hasKeyframe) {
+    lines.push('Reference map: Image 1 is the avatar identity — primary facial identity lock. Every frame of the video must match this face exactly (skin tone, hair color, hair texture, eye shape, facial structure).');
+    lines.push('Image 2 is the composed scene — use for environment, lighting, composition, and product placement only. Do NOT use image 2 for facial identity.');
+    lines.push('Images 3+ are product references — preserve product shape, color, material, packaging, and visible details exactly.');
     lines.push('Animate the composed scene naturally with the dialogue, micro-actions, and camera language described below. Do not invent a new environment.');
-  } else if (bundle.hasProduct && bundle.hasAvatar) {
-    const productCount = Math.max(1, bundle.referenceImages.length - 1);
-    const avatarIndex = bundle.referenceImages.findIndex((url) => url.includes('wsrv.nl') && url.includes('ms-avatars')) + 1;
-    const productIndexes = bundle.referenceImages
-      .map((url, idx) => ({ url, idx: idx + 1 }))
-      .filter(({ idx }) => idx !== avatarIndex)
-      .map(({ idx }) => idx)
-      .join(', ');
-    lines.push(`Reference map: images ${productIndexes || '1'} are product references — preserve product shape, color, material, packaging, and visible details exactly. Image ${avatarIndex || productCount + 1} is the creator/avatar identity — preserve facial likeness only; do not copy the uploaded photo composition, background, pose, lighting, or wardrobe.`);
-    lines.push('Generate a fresh scene from the script below; direct the subject and product naturally inside that new scene.');
-  } else if (bundle.hasProduct) {
-    lines.push('Reference map: all images are product references. Preserve product shape, color, material, packaging, and visible details exactly.');
+  } else if (hasAvatarFirst) {
+    lines.push('Reference map: Image 1 is the avatar identity — primary facial identity lock. Every frame of the video must match this face exactly. Do not copy the photo composition, background, pose, lighting, or wardrobe.');
+    lines.push('The remaining images are product references — preserve product shape, color, material, packaging, and visible details exactly.');
     lines.push('Generate a fresh scene from the script below.');
-  } else if (bundle.hasAvatar) {
-    lines.push('Reference map: the image is the creator/avatar identity. Preserve facial likeness only; do not copy the uploaded photo composition, background, pose, lighting, or wardrobe.');
+  } else if (bundle.hasProduct && !bundle.hasAvatar) {
+    lines.push('Reference map: all images are product references. Preserve product shape, color, material, packaging, and visible details exactly.');
     lines.push('Generate a fresh scene from the script below.');
   } else {
     lines.push('Reference map: use the provided images as visual anchors, not as a first frame to animate.');

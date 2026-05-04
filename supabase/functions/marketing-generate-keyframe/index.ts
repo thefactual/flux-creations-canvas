@@ -76,7 +76,8 @@ function buildKeyframePrompt(scene: string, camera: string, productName: string,
     : 'A pair of natural hands (no face visible) appear in this scene';
   const productRef = hasAvatar ? 'images 2 and after' : 'images 1 and after';
   const identityLine = hasAvatar
-    ? '- Render the person with EXACT face, hair, skin tone, and features from image 1.\n- The person must be physically IN the scene, not composited onto a background.'
+    ? `- The person in image 1 is the SUBJECT. Their face, skin tone, hair color, hair texture, eye shape, and facial structure must be rendered with exact precision. This is not a stylized portrait — it is a photorealistic identity lock. The face in this frame will be used as the primary identity reference for video generation. Any drift in facial features invalidates the entire frame. Render the face first, then place them in the scene described below.
+- The person must be physically IN the scene, not composited onto a background.`
     : '- Render only natural hands holding/using the product. No face, no full body.';
 
   return `Compose ONE photoreal still frame, vertical 9:16 aspect ratio.
