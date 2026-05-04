@@ -76,6 +76,37 @@ function clampDuration(d: unknown): number {
   return Math.max(4, Math.min(15, Math.round(n)));
 }
 
+const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth'];
+function ordinal(n: number, kind: 'image' | 'video' | 'audio'): string {
+  const word = n >= 1 && n <= 9 ? ORDINALS[n - 1] : `${n}th`;
+  return `the ${word} reference ${kind}`;
+}
+
+// Resolve any leftover @image_N / @video_N / @audio_N tokens to natural
+// language and add an explicit "Edit the reference video" frame for edit-style
+// prompts. Mirrors the client resolver so retries and direct API calls also
+// produce a model-friendly prompt.
+function resolvePromptTags(prompt: string, counts: { images: number; videos: number; audios: number }): string {
+  let out = prompt.replace(/@(image|video|audio)_(\d+)/gi, (match, kindRaw: string, idxRaw: string) => {
+    const kind = kindRaw.toLowerCase() as 'image' | 'video' | 'audio';
+    const idx = parseInt(idxRaw, 10);
+    const cap = kind === 'image' ? counts.images : kind === 'video' ? counts.videos : counts.audios;
+    if (!Number.isFinite(idx) || idx < 1 || idx > cap) return match;
+    if (kind === 'video' && cap === 1) return 'the reference video';
+    if (kind === 'audio' && cap === 1) return 'the reference audio';
+    return ordinal(idx, kind);
+  });
+  const hasEditVerb = /\b(replace|swap|change|put|add|remove|insert|turn|make .* into)\b/i.test(prompt);
+  const alreadyFramed = /^edit the reference video:/i.test(out);
+  if (hasEditVerb && counts.videos > 0 && !alreadyFramed) {
+    out = `Edit the reference video: ${out}. Keep everything else identical to the reference video — same person, same setting, same motion, same lighting.`;
+  }
+  out = out.replace(/\b(this|that|these|those)\s+the\s+(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)\s+reference\s+(image|video|audio)\b/gi,
+    (_m, _det, ord, kind) => `the ${ord} reference ${kind}`);
+  out = out.replace(/\bto\s+this\s+the\s+reference\s+(video|audio)\b/gi, 'to the reference $1');
+  return out.trim();
+}
+
 function normRes(r: unknown): string {
   const v = String(r ?? '720p');
   return ALLOWED_RES.has(v) ? v : '720p';
@@ -451,8 +482,15 @@ Deno.serve(async (req) => {
 
     const safeDuration = clampDuration(duration);
 
+    // Resolve any leftover @-tags (client should already have done this, but
+    // retries / direct API calls can land here with raw tokens).
+    const resolvedPrompt = resolvePromptTags(promptText, {
+      images: assetImages.length, videos: assetVideos.length, audios: assetAudios.length,
+    });
+    log('INFO', 'resolved prompt', { original: promptText.slice(0, 200), resolved: resolvedPrompt.slice(0, 240) });
+
     const baseSubmit = {
-      prompt: promptText || 'The character in image 1 dances gracefully to the music',
+      prompt: resolvedPrompt || 'The character in image 1 dances gracefully to the music',
       imageUrls: assetImages,
       videoUrls: assetVideos,
       audioUrls: assetAudios,

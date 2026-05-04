@@ -89,6 +89,54 @@ function probeMedia(file: File, kind: 'video' | 'audio'): Promise<{ duration: nu
   });
 }
 
+const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth'];
+
+function ordinal(n: number, kind: 'image' | 'video' | 'audio'): string {
+  const word = n >= 1 && n <= 9 ? ORDINALS[n - 1] : `${n}th`;
+  return `the ${word} reference ${kind}`;
+}
+
+/**
+ * Resolve @image_N / @video_N / @audio_N tokens to natural language Seedance
+ * understands. Also wraps edit-style prompts in an explicit "Edit the reference
+ * video" frame so the model performs a targeted edit instead of regenerating.
+ */
+export function resolvePromptTags(
+  prompt: string,
+  counts: { images: number; videos: number; audios: number },
+): { resolved: string; missing: string[] } {
+  const missing: string[] = [];
+  let out = prompt;
+
+  out = out.replace(/@(image|video|audio)_(\d+)/gi, (match, kindRaw: string, idxRaw: string) => {
+    const kind = kindRaw.toLowerCase() as 'image' | 'video' | 'audio';
+    const idx = parseInt(idxRaw, 10);
+    const cap = kind === 'image' ? counts.images : kind === 'video' ? counts.videos : counts.audios;
+    if (!Number.isFinite(idx) || idx < 1 || idx > cap) {
+      missing.push(match);
+      return match;
+    }
+    if (kind === 'video' && cap === 1) return 'the reference video';
+    if (kind === 'audio' && cap === 1) return 'the reference audio';
+    return ordinal(idx, kind);
+  });
+
+  // If the prompt looks like a video edit (verbs of replacement/addition + a
+  // reference video attached), frame it explicitly so Seedance keeps the rest
+  // of the clip intact instead of free-generating.
+  const hasEditVerb = /\b(replace|swap|change|put|add|remove|insert|turn|make .* into)\b/i.test(prompt);
+  if (hasEditVerb && counts.videos > 0) {
+    out = `Edit the reference video: ${out}. Keep everything else identical to the reference video — same person, same setting, same motion, same lighting.`;
+  }
+
+  // Tidy doubled articles introduced by the substitution ("to this the first…")
+  out = out.replace(/\b(this|that|these|those)\s+the\s+(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)\s+reference\s+(image|video|audio)\b/gi,
+    (_m, _det, ord, kind) => `the ${ord} reference ${kind}`);
+  out = out.replace(/\bto\s+this\s+the\s+reference\s+(video|audio)\b/gi, 'to the reference $1');
+
+  return { resolved: out.trim(), missing };
+}
+
 function nextTagId(list: SeedanceAsset[], kind: SeedanceAssetKind) {
   const used = new Set(list.map(a => a.id));
   for (let i = 1; i < 100; i++) {
@@ -201,6 +249,18 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
       toast.error('Audio references require at least one image or video.');
       return;
     }
+
+    // Validate @-tags BEFORE we burn credits/upload bytes.
+    const { resolved: resolvedPrompt, missing } = resolvePromptTags(promptText, {
+      images: s.images.length, videos: s.videos.length, audios: s.audios.length,
+    });
+    if (missing.length > 0) {
+      toast.error('Reference tag has no upload', {
+        description: `${missing.join(', ')} — attach the matching reference or remove the tag.`,
+      });
+      return;
+    }
+
     set({ isSubmitting: true });
 
     // Resolve all data URIs to public storage URLs.
@@ -266,7 +326,7 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
         action: 'submit',
         videoId,
         projectId,
-        prompt: promptText,
+        prompt: resolvedPrompt,
         imageUrls,
         videoUrls,
         audioUrls,
