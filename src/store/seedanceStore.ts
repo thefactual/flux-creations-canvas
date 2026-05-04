@@ -119,10 +119,41 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
       toast.error(`Max ${cap} ${kind}${cap > 1 ? 's' : ''}`);
       return;
     }
+
+    // ---- Client-side validation: surface errors BEFORE we burn credits ----
+    const SIZE_CAPS: Record<SeedanceAssetKind, number> = {
+      image: 10 * 1024 * 1024,   // 10 MB
+      video: 50 * 1024 * 1024,   // 50 MB
+      audio: 20 * 1024 * 1024,   // 20 MB
+    };
+    const ALLOWED_MIME: Record<SeedanceAssetKind, RegExp> = {
+      image: /^image\/(jpeg|jpg|png|webp)$/i,
+      video: /^video\/(mp4|quicktime|webm|x-m4v)$/i,
+      audio: /^audio\/(mpeg|mp3|wav|x-wav|aac|m4a|x-m4a|ogg)$/i,
+    };
+    if (file.size > SIZE_CAPS[kind]) {
+      toast.error(`${kind} too large`, {
+        description: `Max ${(SIZE_CAPS[kind] / 1024 / 1024).toFixed(0)} MB — got ${(file.size / 1024 / 1024).toFixed(1)} MB.`,
+      });
+      return;
+    }
+    if (file.type && !ALLOWED_MIME[kind].test(file.type)) {
+      toast.error(`Unsupported ${kind} format`, {
+        description: kind === 'image'
+          ? 'Use JPG, PNG, or WEBP.'
+          : kind === 'video'
+            ? 'Use MP4, MOV, or WEBM.'
+            : 'Use MP3, WAV, AAC, M4A, or OGG.',
+      });
+      return;
+    }
+
     if (kind !== 'image') {
       const dur = await probeMediaDuration(file, kind);
       if (dur && dur > MAX_MEDIA_SECONDS + 0.5) {
-        toast.error(`${kind} must be ≤ ${MAX_MEDIA_SECONDS}s (got ${dur.toFixed(1)}s)`);
+        toast.error(`${kind} too long`, {
+          description: `Seedance accepts ≤ ${MAX_MEDIA_SECONDS}s — got ${dur.toFixed(1)}s. Trim and re-upload.`,
+        });
         return;
       }
       const url = await readFileToDataUrl(file);
