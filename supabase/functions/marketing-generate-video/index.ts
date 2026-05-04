@@ -288,16 +288,11 @@ async function buildReferenceBundle(admin: any, opts: {
   avatarId?: string | null;
   extraImageUrls: string[];
   audioSourceUrls: string[];
-  keyframeUrl?: string | null;
 }): Promise<ReferenceBundle> {
   const productUrls = opts.productId ? await fetchProductImageUrls(admin, opts.productId, 7) : [];
   const avatarUrl = opts.avatarId ? await fetchAvatarImageUrl(admin, opts.avatarId) : null;
   const avatarAsset = opts.avatarId ? await createRequiredAtlasPortraitAsset(avatarUrl, `avatar-${String(opts.avatarId).slice(0, 48)}`) : {};
-  const keyframeAsset = opts.avatarId && opts.keyframeUrl
-    ? await createRequiredAtlasPortraitAsset(opts.keyframeUrl, `keyframe-${String(opts.avatarId).slice(0, 46)}`)
-    : {};
   const extraImageUrls = uniqueValidUrls(opts.extraImageUrls ?? [], 9).filter((url) => {
-    if (url === opts.keyframeUrl) return false;
     if (!opts.avatarId) return true;
     if (url === avatarUrl) return false;
     if (url.includes('wsrv.nl') && url.includes('ms-avatars')) return false;
@@ -306,23 +301,15 @@ async function buildReferenceBundle(admin: any, opts: {
   });
 
   // Identity-first ordering: avatar [0] wins Seedance facial identity arbitration.
-  // Keyframe [1] still seeds scene/composition. Product references follow.
-  const orderedRefs = opts.keyframeUrl
-    ? uniqueValidUrls([
-        ...(avatarUrl ? [avatarUrl] : []),
-        opts.keyframeUrl,
-        ...productUrls,
-        ...extraImageUrls,
-      ], 9)
-    : uniqueValidUrls([
-        ...(avatarUrl ? [avatarUrl] : []),
-        ...productUrls,
-        ...extraImageUrls,
-      ], 9);
+  // Product references follow.
+  const orderedRefs = uniqueValidUrls([
+    ...(avatarUrl ? [avatarUrl] : []),
+    ...productUrls,
+    ...extraImageUrls,
+  ], 9);
 
-  const assetRegistrationError = avatarAsset.error ?? keyframeAsset.error;
+  const assetRegistrationError = avatarAsset.error;
   const atlasReferenceImages = orderedRefs.map((url) => {
-    if (opts.keyframeUrl && url === opts.keyframeUrl && keyframeAsset.assetUrl) return keyframeAsset.assetUrl;
     if (avatarUrl && url === avatarUrl && avatarAsset.assetUrl) return avatarAsset.assetUrl;
     return url;
   });
