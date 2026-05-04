@@ -65,7 +65,7 @@ function readFileToDataUrl(file: File): Promise<string> {
   });
 }
 
-function probeMediaDuration(file: File, kind: 'video' | 'audio'): Promise<number> {
+function probeMedia(file: File, kind: 'video' | 'audio'): Promise<{ duration: number; width?: number; height?: number }> {
   return new Promise((resolve) => {
     try {
       const url = URL.createObjectURL(file);
@@ -73,13 +73,18 @@ function probeMediaDuration(file: File, kind: 'video' | 'audio'): Promise<number
       el.preload = 'metadata';
       el.onloadedmetadata = () => {
         const d = el.duration || 0;
+        const video = el as HTMLVideoElement;
         URL.revokeObjectURL(url);
-        resolve(Number.isFinite(d) ? d : 0);
+        resolve({
+          duration: Number.isFinite(d) ? d : 0,
+          width: kind === 'video' ? video.videoWidth : undefined,
+          height: kind === 'video' ? video.videoHeight : undefined,
+        });
       };
-      el.onerror = () => { URL.revokeObjectURL(url); resolve(0); };
+      el.onerror = () => { URL.revokeObjectURL(url); resolve({ duration: 0 }); };
       el.src = url;
     } catch {
-      resolve(0);
+      resolve({ duration: 0 });
     }
   });
 }
@@ -128,7 +133,7 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
     };
     const ALLOWED_MIME: Record<SeedanceAssetKind, RegExp> = {
       image: /^image\/(jpeg|jpg|png|webp)$/i,
-      video: /^video\/(mp4|quicktime|webm|x-m4v)$/i,
+      video: /^video\/(mp4|quicktime)$/i,
       audio: /^audio\/(mpeg|mp3|wav|x-wav|aac|m4a|x-m4a|ogg)$/i,
     };
     if (file.size > SIZE_CAPS[kind]) {
@@ -142,19 +147,29 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
         description: kind === 'image'
           ? 'Use JPG, PNG, or WEBP.'
           : kind === 'video'
-            ? 'Use MP4, MOV, or WEBM.'
+            ? 'Use MP4 or MOV.'
             : 'Use MP3, WAV, AAC, M4A, or OGG.',
       });
       return;
     }
 
     if (kind !== 'image') {
-      const dur = await probeMediaDuration(file, kind);
-      if (dur && dur > MAX_MEDIA_SECONDS + 0.5) {
+      const media = await probeMedia(file, kind);
+      const dur = media.duration;
+      if (dur && dur > MAX_MEDIA_SECONDS) {
         toast.error(`${kind} too long`, {
           description: `Seedance accepts ≤ ${MAX_MEDIA_SECONDS}s — got ${dur.toFixed(1)}s. Trim and re-upload.`,
         });
         return;
+      }
+      if (kind === 'video' && media.width && media.height) {
+        const shortEdge = Math.min(media.width, media.height);
+        if (![480, 720].includes(shortEdge)) {
+          toast.error('Unsupported video resolution', {
+            description: `Seedance reference videos must be 480p or 720p MP4/MOV — got ${media.width}×${media.height}.`,
+          });
+          return;
+        }
       }
       const url = await readFileToDataUrl(file);
       const asset: SeedanceAsset = {
