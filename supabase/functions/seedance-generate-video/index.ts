@@ -115,6 +115,10 @@ function friendly(raw: string | undefined): string {
   return raw;
 }
 
+function isGeneratedAudioModeration(raw: string | undefined): boolean {
+  return /output audio.*sensitive|generated audio/i.test(raw ?? '');
+}
+
 function isBalanceError(status: number, body: string) {
   if (status === 401 || status === 402) return true;
   return /balance|exhausted|locked|insufficient|top.?up/i.test(body);
@@ -225,8 +229,8 @@ async function createRequiredAtlasAsset(
   assetType: 'Image' | 'Video' | 'Audio',
 ): Promise<{ assetUrl?: string; error?: string }> {
   if (assetType === 'Video') {
-    // Videos do NOT go through sd/assets — only images with faces need that.
-    // Re-host bytes through uploadMedia and pass the hosted URL directly.
+    // AtlasCloud docs: sd/assets is a subject portrait/image library only;
+    // reference_videos accept uploaded URLs, so videos go through uploadMedia.
     const mediaUrl = await uploadAtlasMedia(rawUrl, label);
     if (mediaUrl) return { assetUrl: mediaUrl };
     return { error: 'AtlasCloud could not ingest the reference video. Retry with a smaller file (<50MB) or remove that reference.' };
@@ -403,8 +407,8 @@ Deno.serve(async (req) => {
     const hasRefs = images.length > 0 || videos.length > 0 || audios.length > 0;
     const chosenVariant = normVariant(variant, hasRefs);
 
-    // Register every image AND video as an asset for reliable moderation
-    // (sending raw storage URLs causes Seedance to flag real people).
+    // Register images as portrait assets; upload video/audio bytes to AtlasCloud
+    // first, matching the Seedance 2.0 reference-to-video docs.
     const assetImages: string[] = [];
     for (let i = 0; i < images.length; i++) {
       const label = `seedance-img-${i}-${(videoId ?? 'anon').slice(0, 24)}`;
@@ -436,7 +440,11 @@ Deno.serve(async (req) => {
       assetAudios.push(result.assetUrl!);
     }
 
-    const submission = await atlasSubmit({
+    // Generated audio has been the latest hard failure for image+video jobs.
+    // Keep multimodal reference jobs visual-first unless the user supplied audio.
+    const effectiveGenerateAudio = audios.length > 0 ? !!generateAudio : false;
+
+    let submission = await atlasSubmit({
       prompt: promptText || 'The character in image 1 dances gracefully to the music',
       imageUrls: assetImages,
       videoUrls: assetVideos,
@@ -444,9 +452,23 @@ Deno.serve(async (req) => {
       duration: clampDuration(duration),
       resolution: normRes(resolution),
       ratio: normRatio(ratio),
-      generateAudio: !!generateAudio,
+      generateAudio: effectiveGenerateAudio,
       variant: chosenVariant,
     });
+
+    if (!submission.ok && isGeneratedAudioModeration(submission.error) && effectiveGenerateAudio) {
+      submission = await atlasSubmit({
+        prompt: promptText || 'The character in image 1 dances gracefully to the music',
+        imageUrls: assetImages,
+        videoUrls: assetVideos,
+        audioUrls: assetAudios,
+        duration: clampDuration(duration),
+        resolution: normRes(resolution),
+        ratio: normRatio(ratio),
+        generateAudio: false,
+        variant: chosenVariant,
+      });
+    }
 
     if (!submission.ok) {
       log('WARN', 'submit failed', { err: submission.error });
