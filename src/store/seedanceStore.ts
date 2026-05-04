@@ -237,6 +237,15 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
 
     const videoId = crypto.randomUUID();
     const allRefs = [...imageUrls, ...videoUrls, ...audioUrls];
+    const requestedDuration = Number(s.duration);
+    const effectiveDuration = s.videos.length > 0 && Number.isFinite(requestedDuration)
+      ? String(Math.min(requestedDuration, 12))
+      : s.duration;
+    if (effectiveDuration !== s.duration) {
+      toast.message('Duration adjusted', {
+        description: 'Reference-video jobs are capped at 12s for Seedance reliability.',
+      });
+    }
 
     // Insert a row up-front so the Create Video grid shows a placeholder.
     try {
@@ -246,7 +255,7 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
         model: 'seedance-2.0',
         mode: hasRefs ? 'image-to-video' : 'text-to-video',
         aspect_ratio: s.ratio === 'adaptive' ? '16:9' : s.ratio,
-        duration: String(s.duration),
+        duration: effectiveDuration,
         resolution: s.resolution,
         status: 'processing',
         reference_images: allRefs,
@@ -278,7 +287,7 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
         imageUrls,
         videoUrls,
         audioUrls,
-        duration: Number(s.duration),
+        duration: Number(effectiveDuration),
         resolution: s.resolution,
         ratio: s.ratio,
         generateAudio: s.generateAudio,
