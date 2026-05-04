@@ -15,6 +15,7 @@ import { useVideoStore } from '@/store/videoStore';
 import { usePromptModeStore } from '@/store/promptModeStore';
 import { useCreateProjectsStore } from '@/store/createProjectsStore';
 import { useMarketingFeedStore } from '@/store/marketingFeedStore';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 export default function Generator() {
   const navigate = useNavigate();
