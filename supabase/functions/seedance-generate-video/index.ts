@@ -5,7 +5,7 @@
 // Endpoints used:
 //   POST  https://api.atlascloud.ai/api/v1/model/generateVideo
 //   GET   https://api.atlascloud.ai/api/v1/model/prediction/{id}
-//   POST  https://console.atlascloud.ai/api/v1/sd/assets   (portrait registration)
+//   POST  https://api.atlascloud.ai/api/v1/model/sd/assets   (reference asset registration)
 //
 // Reference: https://www.atlascloud.ai/models/bytedance/seedance-2.0/reference-to-video
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
@@ -21,7 +21,6 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const ATLAS_BASE = 'https://api.atlascloud.ai/api/v1/model';
-const ATLAS_ASSET_BASE = 'https://console.atlascloud.ai/api/v1';
 
 const SEEDANCE_REF = 'bytedance/seedance-2.0/reference-to-video';
 const SEEDANCE_TEXT = 'bytedance/seedance-2.0/text-to-video';
@@ -181,7 +180,7 @@ async function createAtlasAsset(
 ): Promise<string | null> {
   if (!ATLAS_KEY || !rawUrl) return null;
   const submittedUrl = assetType === 'Image' ? toWsrvJpg(rawUrl) : rawUrl;
-  const res = await fetch(`${ATLAS_ASSET_BASE}/sd/assets`, {
+  const res = await fetch(`${ATLAS_BASE}/sd/assets`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${ATLAS_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: submittedUrl, name: label, asset_type: assetType }),
@@ -202,7 +201,7 @@ async function createAtlasAsset(
   if (!id) return immediateAsset ? `asset://${immediateAsset}` : null;
   for (let i = 0; i < 24; i++) {
     await new Promise((r) => setTimeout(r, 2500));
-    const poll = await fetch(`${ATLAS_ASSET_BASE}/sd/assets/${id}`, { headers: { Authorization: `Bearer ${ATLAS_KEY}` } });
+    const poll = await fetch(`${ATLAS_BASE}/sd/assets/${id}`, { headers: { Authorization: `Bearer ${ATLAS_KEY}` } });
     const pollText = await poll.text();
     let pollJson: any = {};
     try { pollJson = JSON.parse(pollText); } catch { /* keep text */ }
