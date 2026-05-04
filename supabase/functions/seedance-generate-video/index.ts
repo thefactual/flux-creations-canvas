@@ -548,7 +548,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    log('INFO', 'submit ok', { predictionId: submission.predictionId, endpoint: submission.endpoint, audioFallbackUsed });
+    log('INFO', 'submit ok', { predictionId: submission.predictionId, endpoint: submission.endpoint, audioFallbackUsed, videoFallbackUsed });
 
     return json({
       submitted: true,
@@ -558,6 +558,7 @@ Deno.serve(async (req) => {
       status: 'processing',
       stage: 'processing',
       audioFallbackUsed,
+      videoFallbackUsed,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
