@@ -472,7 +472,7 @@ async function updateRow(admin: any, videoId: string, patch: Record<string, unkn
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-  if (!ATLAS_KEY) return json({ error: 'AtlasCloud is not configured. Add ATLASCLOUD_API_KEY.' }, 500);
+  if (!ATLAS_KEY && !BYTEPLUS_KEY) return json({ error: 'No Seedance provider configured (set ATLASCLOUD_API_KEY or BYTEPLUS_ARK_API_KEY).' }, 500);
 
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -483,9 +483,10 @@ Deno.serve(async (req) => {
     if (action === 'poll') {
       const predictionId = String(body.predictionId ?? body.taskId ?? '').trim();
       const videoId = String(body.videoId ?? '').trim();
+      const provider = String(body.provider ?? 'atlascloud').trim().toLowerCase();
       if (!predictionId) return json({ error: 'predictionId required' }, 400);
 
-      const out = await atlasPoll(predictionId);
+      const out = provider === 'byteplus' ? await byteplusPoll(predictionId) : await atlasPoll(predictionId);
       if (out.status === 'done') {
         if (videoId) await updateRow(admin, videoId, { status: 'complete', stage: 'complete', video_url: out.videoUrl, error: null });
         return json({ status: 'complete', stage: 'complete', videoUrl: out.videoUrl });
