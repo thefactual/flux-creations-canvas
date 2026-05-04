@@ -171,12 +171,23 @@ async function fetchAvatarImageUrl(admin: any, avatarId: string): Promise<string
   return `https://wsrv.nl/?url=${encodeURIComponent(raw)}&w=640&h=640&fit=cover&a=top&output=jpg`;
 }
 
+function toWsrvJpg(rawUrl: string, w = 1024, h = 1024): string {
+  if (!rawUrl) return rawUrl;
+  if (rawUrl.includes('wsrv.nl')) return rawUrl;
+  return `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=${w}&h=${h}&fit=cover&output=jpg&q=85`;
+}
+
 async function createAtlasPortraitAsset(imageUrl: string, avatarId?: string | null): Promise<string | null> {
   if (!ATLAS_KEY || !imageUrl) return null;
+  // Always route through wsrv to normalize size/format. Seedance asset
+  // registration is more reliable on small JPGs than large pngs.
+  const submittedUrl = toWsrvJpg(imageUrl);
+  const label = `ref-${String(avatarId ?? 'img').slice(0, 48)}`;
+  log('INFO', 'atlas asset: submitting', { label, submittedUrl: submittedUrl.slice(0, 160) });
   const res = await fetch(`${ATLAS_ASSET_BASE}/sd/assets`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${ATLAS_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: imageUrl, name: `avatar-${String(avatarId ?? 'ref').slice(0, 48)}`, asset_type: 'Image' }),
+    body: JSON.stringify({ url: submittedUrl, name: label, asset_type: 'Image' }),
   });
   const text = await res.text();
   let parsed: any = {};
@@ -188,8 +199,18 @@ async function createAtlasPortraitAsset(imageUrl: string, avatarId?: string | nu
   const data = parsed?.data ?? parsed;
   const id = data?.id;
   const immediateAsset = data?.atlas_asset_id ?? data?.ark_asset_id;
-  if (immediateAsset && String(data?.status ?? '').toLowerCase() === 'active') return `asset://${immediateAsset}`;
-  if (!id) return immediateAsset ? `asset://${immediateAsset}` : null;
+  if (immediateAsset && String(data?.status ?? '').toLowerCase() === 'active') {
+    log('INFO', 'atlas asset: active (immediate)', { label, assetId: immediateAsset });
+    return `asset://${immediateAsset}`;
+  }
+  if (!id) {
+    if (immediateAsset) {
+      log('INFO', 'atlas asset: immediate (no poll)', { label, assetId: immediateAsset });
+      return `asset://${immediateAsset}`;
+    }
+    log('WARN', 'atlas asset: no id returned', { label, raw: text.slice(0, 240) });
+    return null;
+  }
   for (let i = 0; i < 24; i++) {
     await new Promise((resolve) => setTimeout(resolve, 2500));
     const poll = await fetch(`${ATLAS_ASSET_BASE}/sd/assets/${id}`, { headers: { Authorization: `Bearer ${ATLAS_KEY}` } });
@@ -199,7 +220,10 @@ async function createAtlasPortraitAsset(imageUrl: string, avatarId?: string | nu
     const asset = pollJson?.data ?? pollJson;
     const status = String(asset?.status ?? '').toLowerCase();
     const assetId = asset?.atlas_asset_id ?? asset?.ark_asset_id ?? immediateAsset;
-    if (status === 'active' && assetId) return `asset://${assetId}`;
+    if (status === 'active' && assetId) {
+      log('INFO', 'atlas asset: active (polled)', { label, assetId, attempts: i + 1 });
+      return `asset://${assetId}`;
+    }
     if (status === 'failed') {
       log('WARN', 'atlas asset failed', { id, error: asset?.error_message ?? asset?.error_code ?? pollText.slice(0, 240) });
       return null;
@@ -379,6 +403,13 @@ async function atlasSubmit(opts: { prompt: string; bundle: ReferenceBundle; dura
     body.return_last_frame = false;
     if (opts.bundle.referenceAudios.length) body.reference_audios = opts.bundle.referenceAudios;
   }
+
+  const refsForLog = (body.reference_images as string[] | undefined) ?? [];
+  log('INFO', 'atlas submit: body', {
+    endpoint,
+    referenceImagesCount: refsForLog.length,
+    referenceImages: refsForLog.map((u) => String(u).startsWith('asset://') ? u : `RAW:${String(u).slice(0, 120)}`),
+  });
 
   const res = await fetch(`${ATLAS_BASE}/generateVideo`, {
     method: 'POST',
