@@ -554,7 +554,7 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
     try {
       let q = (supabase as any)
         .from('video_generations')
-        .select('id,prompt,model,mode,aspect_ratio,duration,resolution,status,video_url,thumbnail_url,reference_images,error,created_at,liked,project_id,create_project_id,task_id')
+        .select('id,prompt,model,mode,aspect_ratio,duration,resolution,status,stage,video_url,thumbnail_url,reference_images,error,created_at,liked,project_id,create_project_id,task_id')
         .order('created_at', { ascending: false })
         .limit(100);
       if (projectId) q = q.or(`create_project_id.eq.${projectId},project_id.eq.${projectId}`);
