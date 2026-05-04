@@ -121,6 +121,45 @@ function toWsrvJpg(rawUrl: string, w = 1024, h = 1024): string {
   return `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=${w}&h=${h}&fit=cover&output=jpg&q=85`;
 }
 
+function filenameFromUrl(rawUrl: string, fallback: string): string {
+  try {
+    const name = decodeURIComponent(new URL(rawUrl).pathname.split('/').pop() || '');
+    return name.includes('.') ? name.slice(0, 96) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function uploadAtlasMedia(rawUrl: string, label: string): Promise<string | null> {
+  if (!ATLAS_KEY || !rawUrl) return null;
+  const source = await fetch(rawUrl);
+  if (!source.ok) {
+    log('WARN', 'media fetch failed', { label, status: source.status });
+    return null;
+  }
+  const blob = await source.blob();
+  if (blob.size > 50 * 1024 * 1024) {
+    log('WARN', 'media too large', { label, size: blob.size });
+    return null;
+  }
+  const form = new FormData();
+  form.append('file', blob, filenameFromUrl(rawUrl, `${label}.mp4`));
+  const res = await fetch(`${ATLAS_BASE}/uploadMedia`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${ATLAS_KEY}` },
+    body: form,
+  });
+  const text = await res.text();
+  let parsed: any = {};
+  try { parsed = JSON.parse(text); } catch { /* keep text */ }
+  const mediaUrl = parsed?.url ?? parsed?.data?.url ?? parsed?.data?.file_url ?? parsed?.file_url;
+  if (!res.ok || !isHttpUrl(mediaUrl)) {
+    log('WARN', 'media upload failed', { label, status: res.status, body: text.slice(0, 240) });
+    return null;
+  }
+  return String(mediaUrl);
+}
+
 // Register prompt-bar uploads as AtlasCloud assets. Returns asset:// URI or
 // null on failure. We require image/video references to be assets so Seedance
 // never receives raw user-upload storage URLs that trigger real-person moderation.
@@ -176,8 +215,15 @@ async function createRequiredAtlasAsset(
 ): Promise<{ assetUrl?: string; error?: string }> {
   const assetUrl = await createAtlasAsset(rawUrl, label, assetType);
   if (assetUrl?.startsWith('asset://')) return { assetUrl };
+  if (assetType === 'Video') {
+    // Atlas portrait assets are image-first and can reject valid videos during
+    // preprocessing. If that happens, ingest the prompt-bar upload through
+    // Atlas uploadMedia and pass the provider-hosted URL (never the raw app URL).
+    const mediaUrl = await uploadAtlasMedia(rawUrl, label);
+    if (mediaUrl) return { assetUrl: mediaUrl };
+  }
   const media = assetType === 'Video' ? 'reference video' : 'reference image';
-  return { error: `AtlasCloud could not register the ${media} as an asset. Retry with a shorter/smaller upload or remove that reference.` };
+  return { error: `AtlasCloud could not ingest the ${media}. Retry with an MP4/MOV under 50MB and 15 seconds, or remove that reference.` };
 }
 
 type SubmitParams = {
