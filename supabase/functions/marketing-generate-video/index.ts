@@ -305,16 +305,18 @@ async function buildReferenceBundle(admin: any, opts: {
     return !isAvatarStorageUrl(url);
   });
 
+  // Identity-first ordering: avatar [0] wins Seedance facial identity arbitration.
+  // Keyframe [1] still seeds scene/composition. Product references follow.
   const orderedRefs = opts.keyframeUrl
     ? uniqueValidUrls([
-        opts.keyframeUrl,
         ...(avatarUrl ? [avatarUrl] : []),
+        opts.keyframeUrl,
         ...productUrls,
         ...extraImageUrls,
       ], 9)
     : uniqueValidUrls([
-        ...productUrls,
         ...(avatarUrl ? [avatarUrl] : []),
+        ...productUrls,
         ...extraImageUrls,
       ], 9);
 
