@@ -6,14 +6,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const APIYI_BASE = "https://api.apiyi.com";
 const FAL_BASE = "https://fal.run";
 const RUNWARE_BASE = "https://api.runware.ai/v1";
+const EVOLINK_BASE = "https://api.evolink.ai";
+const ATLAS_BASE = "https://api.atlascloud.ai/api/v1/model";
 
 type ModelConfig = {
-  type: "gemini" | "fal" | "runware";
-  falModel?: string;
-  falImageModel?: string;
+  type: "nano" | "fal" | "runware";
+  // Nano-banana cascade endpoints
+  falModel?: string;          // also used as fal endpoint for nano text-to-image
+  falImageModel?: string;     // also used as fal endpoint for nano image-to-image (edit)
+  evolinkModel?: string;      // EvoLink model id (e.g. gemini-3-pro-image-preview)
+  atlasModel?: string;        // AtlasCloud model id (e.g. google/nano-banana-pro/text-to-image)
+  atlasEditModel?: string;    // AtlasCloud edit model id (image-to-image)
   apiModel?: string;
   runwareModel?: string;
   supportsImageInput?: boolean;
@@ -21,20 +26,30 @@ type ModelConfig = {
   requiresImage?: boolean;
   textFallback?: string;
   lora?: string;
-  fallbackModel?: string; // model ID to retry with if this one fails
+  fallbackModel?: string; // model ID to retry with if all primary providers fail
 };
 
-// All models route through fal.ai (with Gemini fallback for nano banana family).
+// All models route through fal.ai (with EvoLink + AtlasCloud cascade for nano banana family).
 // Each entry has a text-to-image endpoint and (optionally) an edit/image-to-image endpoint
 // that's used automatically when reference images are provided.
 const MODEL_MAP: Record<string, ModelConfig> = {
-  // Google Nano Banana family — primary via apiyi (Gemini), fall back to fal Seedream
+  // Google Nano Banana family — cascade: fal.ai → EvoLink → AtlasCloud, then fall back to Seedream
   "nano-banana-pro": {
-    apiModel: "gemini-3-pro-image-preview", type: "gemini",
+    type: "nano",
+    falModel: "fal-ai/nano-banana-pro",
+    falImageModel: "fal-ai/nano-banana-pro/edit",
+    evolinkModel: "gemini-3-pro-image-preview",
+    atlasModel: "google/nano-banana-pro/text-to-image",
+    atlasEditModel: "google/nano-banana-pro/image-to-image",
     supportsImageInput: true, isMultiRef: true, fallbackModel: "seedream-4",
   },
   "nano-banana-2": {
-    apiModel: "gemini-3.1-flash-image-preview", type: "gemini",
+    type: "nano",
+    falModel: "fal-ai/nano-banana-2",
+    falImageModel: "fal-ai/nano-banana-2/edit",
+    evolinkModel: "gemini-3.1-flash-image-preview",
+    atlasModel: "google/nano-banana-2/text-to-image",
+    atlasEditModel: "google/nano-banana-2/image-to-image",
     supportsImageInput: true, isMultiRef: true, fallbackModel: "seedream-4",
   },
 
@@ -181,85 +196,201 @@ serve(async (req) => {
     let imageUrl: string | undefined;
     let imageBase64: string | undefined;
     const ar = aspectRatio === "Auto" ? "1:1" : aspectRatio;
-    let geminiFailed = false;
+    let nanoFailed = false;
 
-    // ========== GEMINI MODELS (via apiyi) ==========
-    if (modelConfig.type === "gemini") {
-      const APIYI_API_KEY = Deno.env.get("APIYI_API_KEY");
-      if (!APIYI_API_KEY) {
-        // No apiyi key — skip straight to fallback
-        geminiFailed = true;
-        console.log("APIYI_API_KEY not configured, will try fallback");
-      } else {
+    // ========== NANO BANANA CASCADE: fal.ai → EvoLink → AtlasCloud ==========
+    if (modelConfig.type === "nano") {
+      const FAL_KEY = Deno.env.get("FAL_KEY");
+      const EVOLINK_API_KEY = Deno.env.get("EVOLINK_API_KEY");
+      const ATLASCLOUD_API_KEY = Deno.env.get("ATLASCLOUD_API_KEY");
+
+      const hasRefs = referenceImages.length > 0;
+      const evolinkAr = ["1:1","1:4","4:1","1:8","8:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"].includes(ar) ? ar : "auto";
+      const atlasAr = ["1:1","3:2","2:3","3:4","4:3","4:5","5:4","9:16","16:9","21:9"].includes(ar) ? ar : "1:1";
+      const falImageSize = arToSize(ar, quality);
+
+      type CheckedFiltered = { filtered: true };
+      type ProviderResult =
+        | { ok: true; imageUrl?: string; imageBase64?: string }
+        | { ok: false; reason: string }
+        | CheckedFiltered;
+
+      // ---------- Provider 1: fal.ai ----------
+      const callFal = async (): Promise<ProviderResult> => {
+        if (!FAL_KEY) return { ok: false, reason: "FAL_KEY not configured" };
         try {
-          const parts: any[] = [];
-          for (const refImg of referenceImages) {
-            const dataUri = await fetchImageAsDataUri(refImg);
-            if (!dataUri) continue;
-            const match = dataUri.match(/^data:(image\/\w+);base64,(.+)$/);
-            if (!match) continue;
-            parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
-          }
-          parts.push({ text: prompt });
-
-          const imageSize = QUALITY_MAP[quality] || "2K";
-          const endpoint = `${APIYI_BASE}/v1beta/models/${modelConfig.apiModel}:generateContent`;
-          console.log(`Calling Gemini: ${endpoint}, ar=${ar}, size=${imageSize}, refs=${referenceImages.length}`);
-
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 90_000);
-          const response = await fetch(endpoint, {
+          const endpoint = hasRefs && modelConfig.falImageModel ? modelConfig.falImageModel : modelConfig.falModel!;
+          const reqBody: Record<string, unknown> = { prompt, num_images: 1 };
+          reqBody.image_size = falImageSize;
+          if (ar !== "Auto") reqBody.aspect_ratio = ar;
+          if (hasRefs) reqBody.image_urls = referenceImages.slice(0, 14);
+          console.log(`[nano cascade] fal.ai → ${endpoint}, refs=${referenceImages.length}`);
+          const resp = await fetch(`${FAL_BASE}/${endpoint}`, {
             method: "POST",
-            headers: { Authorization: `Bearer ${APIYI_API_KEY}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: ar, imageSize } },
-            }),
-            signal: ctrl.signal,
-          }).finally(() => clearTimeout(timer));
+            headers: { Authorization: `Key ${FAL_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify(reqBody),
+          });
+          if (!resp.ok) {
+            const t = await resp.text();
+            console.error(`[nano cascade] fal failed ${resp.status}: ${t.slice(0, 300)}`);
+            return { ok: false, reason: `fal ${resp.status}` };
+          }
+          const data = await resp.json();
+          if (data?.has_nsfw_concepts?.[0]) return { filtered: true };
+          const out = data?.images?.[0] ?? data?.image;
+          const url = typeof out === "string" ? out : out?.url;
+          if (!url) return { ok: false, reason: "fal: no image in response" };
+          return { ok: true, imageUrl: url };
+        } catch (e) {
+          return { ok: false, reason: `fal exception: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      };
 
-          if (!response.ok) {
-            const errText = await response.text();
-            console.error("Gemini error:", response.status, errText, "— will try fallback");
-            geminiFailed = true;
-          } else {
-            const data = await response.json();
-            const candidate = data?.candidates?.[0];
-            const resParts = candidate?.content?.parts ?? [];
-            const imgPart = resParts.find((p: any) => p.inlineData?.data);
+      // ---------- Provider 2: EvoLink ----------
+      const callEvolink = async (): Promise<ProviderResult> => {
+        if (!EVOLINK_API_KEY) return { ok: false, reason: "EVOLINK_API_KEY not configured" };
+        try {
+          const submitBody: Record<string, unknown> = {
+            model: modelConfig.evolinkModel,
+            prompt,
+            size: evolinkAr,
+            quality: QUALITY_MAP[quality] || "2K",
+          };
+          if (hasRefs) submitBody.image_urls = referenceImages.slice(0, 14);
+          console.log(`[nano cascade] EvoLink → ${modelConfig.evolinkModel}, size=${evolinkAr}, refs=${referenceImages.length}`);
+          const submit = await fetch(`${EVOLINK_BASE}/v1/images/generations`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${EVOLINK_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify(submitBody),
+          });
+          if (!submit.ok) {
+            const t = await submit.text();
+            console.error(`[nano cascade] EvoLink submit failed ${submit.status}: ${t.slice(0, 300)}`);
+            return { ok: false, reason: `evolink submit ${submit.status}` };
+          }
+          const submitData = await submit.json();
+          const taskId = submitData?.id;
+          if (!taskId) return { ok: false, reason: "evolink: no task id" };
 
-            if (imgPart?.inlineData?.data) {
-              imageBase64 = `data:${imgPart.inlineData.mimeType || "image/png"};base64,${imgPart.inlineData.data}`;
-            } else {
-              const isFiltered = candidate?.finishReason === "SAFETY" || candidate?.finishReason === "PROHIBITED_CONTENT";
-              if (isFiltered) {
-                // Content filtered — don't fallback, return filter result
-                return new Response(JSON.stringify({ error: "Image was filtered due to content policy.", filtered: true }), {
-                  status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-                });
-              }
-              console.log("Gemini returned no image, will try fallback");
-              geminiFailed = true;
+          // Poll up to ~90s
+          for (let i = 0; i < 45; i++) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const poll = await fetch(`${EVOLINK_BASE}/v1/tasks/${taskId}`, {
+              headers: { Authorization: `Bearer ${EVOLINK_API_KEY}` },
+            });
+            if (!poll.ok) continue;
+            const pollData = await poll.json();
+            const status = pollData?.status;
+            if (status === "completed") {
+              const url = Array.isArray(pollData?.results) ? pollData.results[0] : undefined;
+              if (!url) return { ok: false, reason: "evolink: no result url" };
+              return { ok: true, imageUrl: url };
+            }
+            if (status === "failed") {
+              const code = pollData?.error?.code;
+              if (code === "content_policy_violation") return { filtered: true };
+              return { ok: false, reason: `evolink failed: ${pollData?.error?.message || code || "unknown"}` };
             }
           }
+          return { ok: false, reason: "evolink poll timeout" };
         } catch (e) {
-          console.error("Gemini exception:", e, "— will try fallback");
-          geminiFailed = true;
+          return { ok: false, reason: `evolink exception: ${e instanceof Error ? e.message : String(e)}` };
         }
+      };
+
+      // ---------- Provider 3: AtlasCloud ----------
+      const callAtlas = async (): Promise<ProviderResult> => {
+        if (!ATLASCLOUD_API_KEY) return { ok: false, reason: "ATLASCLOUD_API_KEY not configured" };
+        try {
+          const atlasModel = hasRefs && modelConfig.atlasEditModel ? modelConfig.atlasEditModel : modelConfig.atlasModel;
+          const submitBody: Record<string, unknown> = {
+            model: atlasModel,
+            prompt,
+            aspect_ratio: atlasAr,
+            resolution: quality === "1K" ? "1k" : quality === "4K" ? "4k" : "2k",
+            output_format: "default",
+          };
+          if (hasRefs) submitBody.image_urls = referenceImages.slice(0, 14);
+          console.log(`[nano cascade] AtlasCloud → ${atlasModel}, ar=${atlasAr}, refs=${referenceImages.length}`);
+          const submit = await fetch(`${ATLAS_BASE}/generateImage`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${ATLASCLOUD_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify(submitBody),
+          });
+          if (!submit.ok) {
+            const t = await submit.text();
+            console.error(`[nano cascade] AtlasCloud submit failed ${submit.status}: ${t.slice(0, 300)}`);
+            return { ok: false, reason: `atlas submit ${submit.status}` };
+          }
+          const submitData = await submit.json();
+          const predictionId = submitData?.data?.id ?? submitData?.id;
+          if (!predictionId) return { ok: false, reason: "atlas: no prediction id" };
+
+          // Poll up to ~90s
+          for (let i = 0; i < 45; i++) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const poll = await fetch(`${ATLAS_BASE}/prediction/${predictionId}`, {
+              headers: { Authorization: `Bearer ${ATLASCLOUD_API_KEY}` },
+            });
+            if (!poll.ok) continue;
+            const pollData = await poll.json();
+            const status = pollData?.data?.status;
+            if (status === "completed" || status === "succeeded") {
+              const url = pollData?.data?.outputs?.[0];
+              if (!url) return { ok: false, reason: "atlas: no output url" };
+              return { ok: true, imageUrl: typeof url === "string" ? url : url?.url };
+            }
+            if (status === "failed") {
+              return { ok: false, reason: `atlas failed: ${pollData?.data?.error || "unknown"}` };
+            }
+          }
+          return { ok: false, reason: "atlas poll timeout" };
+        } catch (e) {
+          return { ok: false, reason: `atlas exception: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      };
+
+      const providers: Array<{ name: string; fn: () => Promise<ProviderResult> }> = [
+        { name: "fal.ai", fn: callFal },
+        { name: "EvoLink", fn: callEvolink },
+        { name: "AtlasCloud", fn: callAtlas },
+      ];
+
+      const failures: string[] = [];
+      for (const p of providers) {
+        const res = await p.fn();
+        if ("filtered" in res) {
+          return new Response(JSON.stringify({ error: "Image was filtered due to content policy.", filtered: true }), {
+            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (res.ok) {
+          imageUrl = res.imageUrl;
+          imageBase64 = res.imageBase64;
+          console.log(`[nano cascade] ${p.name} succeeded`);
+          break;
+        }
+        failures.push(`${p.name}: ${res.reason}`);
+        console.warn(`[nano cascade] ${p.name} failed (${res.reason}), trying next provider`);
       }
 
-      // If Gemini failed and we have a fallback, switch to it
-      if (geminiFailed && modelConfig.fallbackModel) {
+      if (!imageUrl && !imageBase64) {
+        nanoFailed = true;
+        console.warn(`[nano cascade] all providers failed: ${failures.join(" | ")}`);
+      }
+
+      // If all 3 nano providers failed and we have a final fallback (e.g. seedream), switch to it
+      if (nanoFailed && modelConfig.fallbackModel) {
         activeModel = modelConfig.fallbackModel;
         modelConfig = MODEL_MAP[activeModel];
-        console.log(`Gemini failed, falling back to: ${activeModel} (${modelConfig.type})`);
+        console.log(`[nano cascade] falling back to ${activeModel} (${modelConfig?.type})`);
         if (!modelConfig) {
           return new Response(JSON.stringify({ error: `Fallback model not found: ${activeModel}` }), {
             status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-      } else if (geminiFailed) {
-        return new Response(JSON.stringify({ error: "Gemini generation failed and no fallback configured" }), {
+      } else if (nanoFailed) {
+        return new Response(JSON.stringify({ error: "Nano Banana generation failed across fal.ai, EvoLink, and AtlasCloud", details: failures.join(" | ") }), {
           status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
