@@ -336,6 +336,43 @@ function AssetTrack({
   );
 }
 
+// Dedicated keyframe slot — single image, large, with explicit Start/End label.
+function KeyframeSlot({
+  label, hint, asset, onAdd, onRemove, onTag, disabled,
+}: {
+  label: string;
+  hint: string;
+  asset?: SeedanceAsset;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  onTag: (tag: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 min-w-0">
+      <div className="flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground">
+        <ImagePlus className="w-4 h-4" />
+        <span className="font-semibold text-white/80">{label}</span>
+        <span className="text-muted-foreground/70">{hint}</span>
+      </div>
+      <div className="flex gap-1.5">
+        {asset ? (
+          <AssetThumb asset={asset} onRemove={() => onRemove(asset.id)} onTag={() => onTag(asset.id)} />
+        ) : (
+          <button
+            onClick={onAdd}
+            disabled={disabled}
+            className="w-[72px] h-[72px] rounded-lg bg-white/[0.03] border border-dashed border-white/15 hover:border-white/30 hover:bg-white/[0.06] transition-colors grid place-items-center text-muted-foreground disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-white/15 disabled:hover:bg-white/[0.03]"
+            title={disabled ? 'Add a start frame first' : `Add ${label.toLowerCase()}`}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AssetThumb({ asset, onRemove, onTag }: { asset: SeedanceAsset; onRemove: () => void; onTag: () => void }) {
   return (
     <div className="relative group w-[72px] h-[72px] rounded-lg overflow-hidden border border-white/10 bg-black/40">
