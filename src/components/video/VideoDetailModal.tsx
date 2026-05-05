@@ -50,10 +50,20 @@ export function VideoDetailModal() {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[min(1200px,96vw)] w-[96vw] h-[92vh] md:h-[88vh] bg-ms-surface border-ms-border p-0 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-[min(1200px,96vw)] w-[96vw] h-[92vh] md:h-[88vh] bg-ms-surface/80 backdrop-blur-2xl border-ms-border p-0 overflow-hidden flex flex-col">
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
           {/* Media */}
-          <div className="relative bg-black flex items-center justify-center min-h-0 overflow-hidden">
+          <div className="relative flex items-center justify-center min-h-0 overflow-hidden">
+            {playSrc && (
+              <video
+                src={playSrc}
+                muted
+                loop
+                playsInline
+                aria-hidden
+                className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50 pointer-events-none"
+              />
+            )}
             {playSrc ? (
               <video
                 key={playSrc}
@@ -63,7 +73,7 @@ export function VideoDetailModal() {
                 loop
                 playsInline
                 preload="auto"
-                className="max-w-full max-h-full w-auto h-auto object-contain"
+                className="relative max-w-full max-h-full w-auto h-auto object-contain z-10"
               />
             ) : (
               <div className="text-muted-foreground text-sm">No preview available</div>
@@ -143,7 +153,7 @@ export function VideoDetailModal() {
                   retryVideo(video.id);
                   setSelectedVideoId(null);
                 }}
-                className="w-full h-11 rounded-xl bg-lime-300 text-black text-sm font-semibold hover:brightness-105 flex items-center justify-center gap-2"
+                className="ms-cta w-full h-11 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" /> Recreate
               </button>
