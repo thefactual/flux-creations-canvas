@@ -12,6 +12,8 @@ import SpacesProjects from "./pages/SpacesProjects.tsx";
 import MarketingStudio from "./pages/MarketingStudio.tsx";
 import MarketingStudioProject from "./pages/MarketingStudioProject.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import Auth from "./pages/Auth.tsx";
+import { AuthProvider } from "@/hooks/useAuth";
 
 const queryClient = new QueryClient();
 
@@ -21,9 +23,11 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AuthProvider>
         <GlobalHeader />
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/home" element={<Home />} />
           <Route path="/create" element={<Generator />} />
           <Route path="/create/:slug" element={<Generator />} />
@@ -37,6 +41,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
