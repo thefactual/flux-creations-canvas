@@ -145,14 +145,14 @@ export default function Auth() {
         <div className="relative flex flex-col items-center justify-center px-5 py-10 sm:px-10 lg:px-16">
           <div className="absolute top-5 left-5 sm:top-7 sm:left-8">
             <Link to="/home" className="flex items-center gap-2 text-sm font-semibold tracking-wide text-white/80 hover:text-white">
-              <span className="grid place-items-center w-8 h-8 rounded-md bg-[#d8ff3e] text-black font-extrabold">K</span>
+              <img src="/auth/logo.jpg" alt="Korsola" className="w-8 h-8 rounded-md object-cover" />
               <span className="hidden sm:inline">KORSOLA</span>
             </Link>
           </div>
 
           <div className="w-full max-w-[440px]">
-            <div className="mx-auto mb-6 grid place-items-center w-14 h-14 rounded-2xl bg-[#d8ff3e]">
-              <span className="text-black text-2xl font-extrabold">K</span>
+            <div className="mx-auto mb-6 w-14 h-14 rounded-2xl overflow-hidden">
+              <img src="/auth/logo.jpg" alt="Korsola" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-center text-[28px] sm:text-[34px] font-semibold leading-tight tracking-tight">
               Welcome to Korsola
