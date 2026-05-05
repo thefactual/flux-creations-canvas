@@ -133,7 +133,7 @@ export default function Auth() {
     }
   };
 
-  const current = SLIDES[slide];
+  const current = SLIDES[slide] ?? SLIDES[0];
 
   return (
     <div
