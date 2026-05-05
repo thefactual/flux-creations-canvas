@@ -325,8 +325,8 @@ serve(async (req) => {
           const taskId = submitData?.id;
           if (!taskId) return { ok: false, reason: "evolink: no task id" };
 
-          // Poll up to ~90s
-          for (let i = 0; i < 45; i++) {
+          // Poll up to ~40s (cascade must fit within 150s edge timeout)
+          for (let i = 0; i < 20; i++) {
             await new Promise((r) => setTimeout(r, 2000));
             const poll = await fetch(`${EVOLINK_BASE}/v1/tasks/${taskId}`, {
               headers: { Authorization: `Bearer ${EVOLINK_API_KEY}` },
