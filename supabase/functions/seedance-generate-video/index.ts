@@ -630,56 +630,7 @@ Deno.serve(async (req) => {
     // "Turn Sound OFF" hint to the user.
     const effectiveGenerateAudio = generateAudio !== false;
 
-    // ===== Attempt 1: AtlasCloud (primary) =====
-    // Requires asset registration for images so face-moderation works. If any
-    // step fails and BytePlus is configured, we fall back to BytePlus which
-    // accepts public URLs directly.
-    const tryAtlas = async (): Promise<{ ok: true; predictionId: string; endpoint: string; provider: 'atlascloud'; audioFallbackUsed: boolean } | { ok: false; error: string }> => {
-      if (!ATLAS_KEY) return { ok: false, error: 'AtlasCloud not configured' };
-
-      const tag = (videoId ?? 'anon').slice(0, 24);
-      const [imgResults, vidResults, audResults] = await Promise.all([
-        Promise.all(images.map((u, i) => createRequiredAtlasAsset(u, `seedance-img-${i}-${tag}`, 'Image'))),
-        Promise.all(videos.map((u, i) => createRequiredAtlasAsset(u, `seedance-vid-${i}-${tag}`, 'Video'))),
-        Promise.all(audios.map((u, i) => createRequiredAtlasAsset(u, `seedance-aud-${i}-${tag}`, 'Audio'))),
-      ]);
-      const refError =
-        imgResults.find((r) => r.error)?.error ??
-        vidResults.find((r) => r.error)?.error ??
-        audResults.find((r) => r.error)?.error;
-      if (refError) return { ok: false, error: refError };
-
-      const assetImages = imgResults.map((r) => r.assetUrl!);
-      const assetVideos = vidResults.map((r) => r.assetUrl!);
-      const assetAudios = audResults.map((r) => r.assetUrl!);
-
-      const resolvedPrompt = resolvePromptTags(promptText, {
-        images: assetImages.length, videos: assetVideos.length, audios: assetAudios.length,
-      });
-      log('INFO', 'resolved prompt', { original: promptText.slice(0, 200), resolved: resolvedPrompt.slice(0, 240) });
-
-      const baseSubmit = {
-        prompt: resolvedPrompt || 'The character in image 1 dances gracefully to the music',
-        imageUrls: assetImages,
-        videoUrls: assetVideos,
-        audioUrls: assetAudios,
-        duration: safeDuration,
-        resolution: normRes(resolution),
-        ratio: normRatio(ratio),
-        variant: chosenVariant,
-      };
-
-      let submission = await atlasSubmit({ ...baseSubmit, generateAudio: effectiveGenerateAudio });
-      let audioFallbackUsed = false;
-      if (!submission.ok && isGeneratedAudioModeration(submission.error)) {
-        audioFallbackUsed = true;
-        submission = await atlasSubmit({ ...baseSubmit, generateAudio: false });
-      }
-      if (!submission.ok) return { ok: false, error: submission.error };
-      return { ok: true, predictionId: submission.predictionId, endpoint: submission.endpoint, provider: 'atlascloud', audioFallbackUsed };
-    };
-
-    // ===== Attempt 2: BytePlus ModelArk (fallback, direct ByteDance) =====
+    // ===== BytePlus ModelArk (PRIMARY, only provider) =====
     // Accepts raw HTTPS URLs in content[]. No asset registration step.
     const tryByteplus = async (): Promise<{ ok: true; predictionId: string; endpoint: string; provider: 'byteplus'; audioFallbackUsed: boolean } | { ok: false; error: string }> => {
       if (!BYTEPLUS_KEY) return { ok: false, error: 'BytePlus fallback not configured' };
