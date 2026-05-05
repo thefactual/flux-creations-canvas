@@ -23,7 +23,7 @@ const SLIDES: Slide[] = [
     subtitle: "Generate hyper-real images from a prompt or any reference photo.",
   },
   {
-    src: "/auth/v6.mp4",
+    src: "/auth/v-kling.mp4",
     type: "video",
     badge: "With Audio",
     title: "KLING 3.0",
