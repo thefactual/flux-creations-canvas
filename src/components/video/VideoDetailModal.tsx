@@ -153,7 +153,7 @@ export function VideoDetailModal() {
                   retryVideo(video.id);
                   setSelectedVideoId(null);
                 }}
-                className="w-full h-11 rounded-xl bg-lime-300 text-black text-sm font-semibold hover:brightness-105 flex items-center justify-center gap-2"
+                className="ms-cta w-full h-11 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" /> Recreate
               </button>
