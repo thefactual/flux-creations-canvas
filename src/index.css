@@ -4,6 +4,65 @@
 
 @layer base {
   :root {
+    /* Light theme */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 8%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+
+    --primary: 83 70% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 8%;
+
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 233 63% 53%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 83 70% 40%;
+
+    --radius: 0.5rem;
+
+    --canvas: 0 0% 98%;
+    --node: 0 0% 100%;
+    --node-border: 0 0% 88%;
+    --connection: 233 63% 53%;
+    --toolbar: 0 0% 100%;
+    --palette: 0 0% 98%;
+    --badge-bg: 83 60% 92%;
+    --badge-text: 83 70% 30%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 35%;
+    --sidebar-primary: 83 70% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 94%;
+    --sidebar-accent-foreground: 0 0% 8%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 83 70% 40%;
+
+    --ms-bg: 0 0% 99%;
+    --ms-surface: 0 0% 97%;
+    --ms-surface-2: 0 0% 94%;
+    --ms-border: 0 0% 88%;
+    --ms-cta: 270 85% 55%;
+    --ms-cta-2: 285 90% 50%;
+    --ms-glow: 270 85% 65%;
+  }
+
+  .dark {
     --background: 0 0% 4%;
     --foreground: 0 0% 100%;
 
@@ -32,8 +91,6 @@
     --input: 0 0% 18%;
     --ring: 83 74% 55%;
 
-    --radius: 0.5rem;
-
     --canvas: 0 0% 4%;
     --node: 0 0% 10%;
     --node-border: 0 0% 18%;
@@ -52,7 +109,6 @@
     --sidebar-border: 0 0% 18%;
     --sidebar-ring: 83 74% 55%;
 
-    /* Marketing Studio palette */
     --ms-bg: 0 0% 3%;
     --ms-surface: 0 0% 6%;
     --ms-surface-2: 0 0% 9%;
@@ -154,9 +210,14 @@
 .ms-grid-bg {
   background-color: hsl(var(--ms-surface));
   background-image:
+    linear-gradient(to right, hsl(0 0% 0% / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(0 0% 0% / 0.05) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px;
+}
+.dark .ms-grid-bg {
+  background-image:
     linear-gradient(to right, hsl(0 0% 100% / 0.025) 1px, transparent 1px),
     linear-gradient(to bottom, hsl(0 0% 100% / 0.025) 1px, transparent 1px);
-  background-size: 96px 96px, 96px 96px;
 }
 
 

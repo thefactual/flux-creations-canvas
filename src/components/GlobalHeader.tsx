@@ -2,6 +2,7 @@ import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { GenerateButton } from '@/components/generator/GenerateButton';
 import { useState } from 'react';
 import { Menu, X, Bell, Gem, User, ArrowLeft, ChevronDown, Pencil, Trash2 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import logoWhite from '@/assets/korsola-logo-white.png';
 import logoPink from '@/assets/korsola-logo-pink.png';
 import { useLayoutStore } from '@/store/layoutStore';
@@ -158,6 +159,7 @@ export function GlobalHeader() {
         {/* Right: auth / actions */}
         <div className="flex items-center gap-2">
           {location.pathname.startsWith('/create') && <LayoutZoomSlider />}
+          <ThemeToggle />
           {!isLoggedIn ? (
             <>
               <button className="hidden sm:flex items-center gap-1.5 px-4 h-10 rounded-2xl text-sm font-semibold text-foreground hover:bg-muted/50 relative transition-colors">
