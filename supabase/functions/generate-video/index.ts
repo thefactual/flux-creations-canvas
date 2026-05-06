@@ -14,6 +14,8 @@ const APIYI_BASE = "https://api.apiyi.com";
 type DurationFormat = "kling-str" | "veo-str" | "pixverse-int" | "minimax-none" | "ltx-frames";
 type ImageField = "image_url" | "start_image_url";
 
+type ApiyiFamily = "veo" | "sora";
+
 type VideoModelConfig = {
   type: "fal" | "runware" | "evolink" | "apiyi";
   textToVideo?: string;
@@ -22,8 +24,9 @@ type VideoModelConfig = {
   videoEdit?: string;
   runwareModel?: string;
   evolinkModel?: string;
-  // For apiyi: base model id without orientation/fl suffixes (e.g. "veo-3.1", "veo-3.1-fast")
+  // For apiyi: base model id without orientation/fl suffixes (e.g. "veo-3.1", "veo-3.1-fast", "sora-2", "sora-2-pro")
   apiyiBaseModel?: string;
+  apiyiFamily?: ApiyiFamily;
   durationFormat?: DurationFormat;
   imageField?: ImageField;
 };
