@@ -167,6 +167,17 @@ async function handlePoll(body: Record<string, unknown>) {
       return jsonResp({ status: "failed", error: statusData?.error?.message || statusData?.error || "APIYI task failed" });
     }
     if (st === "completed") {
+      // Prefer a URL from the status payload if APIYI provides one
+      const directUrl =
+        statusData?.url ||
+        statusData?.video_url ||
+        statusData?.result?.url ||
+        statusData?.data?.url ||
+        statusData?.data?.video_url;
+      if (directUrl) return jsonResp({ status: "complete", videoUrl: directUrl });
+
+      // Otherwise /content streams the raw MP4 bytes (binary, NOT JSON).
+      // Download with the API key, then upload to public storage so the browser can play it.
       const contentResp = await fetch(`${APIYI_BASE}/v1/videos/${taskId}/content`, {
         headers: { Authorization: `Bearer ${APIYI_API_KEY}` },
       });
@@ -174,10 +185,29 @@ async function handlePoll(body: Record<string, unknown>) {
         const t = await contentResp.text();
         return jsonResp({ error: `APIYI content fetch failed: ${contentResp.status} ${t}` }, 502);
       }
-      const contentData = await contentResp.json();
-      const videoUrl = contentData?.url || contentData?.video_url;
-      if (videoUrl) return jsonResp({ status: "complete", videoUrl });
-      return jsonResp({ error: "No video URL in APIYI response" }, 502);
+      const bytes = new Uint8Array(await contentResp.arrayBuffer());
+
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+      const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const path = `apiyi/${taskId}.mp4`;
+      const uploadResp = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/video-inputs/${path}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${SERVICE_KEY}`,
+            "Content-Type": "video/mp4",
+            "x-upsert": "true",
+          },
+          body: bytes,
+        },
+      );
+      if (!uploadResp.ok) {
+        const t = await uploadResp.text();
+        return jsonResp({ error: `Storage upload failed: ${uploadResp.status} ${t}` }, 502);
+      }
+      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/video-inputs/${path}`;
+      return jsonResp({ status: "complete", videoUrl: publicUrl });
     }
     return jsonResp({ status: "processing" });
   }
