@@ -145,7 +145,44 @@ async function handlePoll(body: Record<string, unknown>) {
     return jsonResp({ status: "processing" });
   }
 
-  // ---- EVOLINK poll ----
+  // ---- APIYI poll (Google Veo via APIYI) ----
+  // Per https://docs.apiyi.com/api-capabilities/veo/async-api
+  // GET /v1/videos/{id} → status (queued|processing|completed|failed)
+  // GET /v1/videos/{id}/content → final URL
+  if (provider === "apiyi") {
+    const APIYI_API_KEY = Deno.env.get("APIYI_API_KEY");
+    if (!APIYI_API_KEY) return jsonResp({ error: "APIYI_API_KEY not configured" }, 500);
+
+    const statusResp = await fetch(`${APIYI_BASE}/v1/videos/${taskId}`, {
+      headers: { Authorization: `Bearer ${APIYI_API_KEY}` },
+    });
+    if (!statusResp.ok) {
+      const t = await statusResp.text();
+      console.error("APIYI status error:", statusResp.status, t);
+      return jsonResp({ status: "processing" });
+    }
+    const statusData = await statusResp.json();
+    const st = statusData?.status;
+    if (st === "failed") {
+      return jsonResp({ status: "failed", error: statusData?.error?.message || statusData?.error || "APIYI task failed" });
+    }
+    if (st === "completed") {
+      const contentResp = await fetch(`${APIYI_BASE}/v1/videos/${taskId}/content`, {
+        headers: { Authorization: `Bearer ${APIYI_API_KEY}` },
+      });
+      if (!contentResp.ok) {
+        const t = await contentResp.text();
+        return jsonResp({ error: `APIYI content fetch failed: ${contentResp.status} ${t}` }, 502);
+      }
+      const contentData = await contentResp.json();
+      const videoUrl = contentData?.url || contentData?.video_url;
+      if (videoUrl) return jsonResp({ status: "complete", videoUrl });
+      return jsonResp({ error: "No video URL in APIYI response" }, 502);
+    }
+    return jsonResp({ status: "processing" });
+  }
+
+
   if (provider === "evolink") {
     const EVOLINK_API_KEY = Deno.env.get("EVOLINK_API_KEY");
     if (!EVOLINK_API_KEY) return jsonResp({ error: "EVOLINK_API_KEY not configured" }, 500);
