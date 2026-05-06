@@ -37,9 +37,11 @@ const VIDEO_MODEL_MAP: Record<string, VideoModelConfig> = {
   "kling-v2.6-pro": { type: "fal", imageToVideo: "fal-ai/kling-video/v2.6/pro/image-to-video", durationFormat: "kling-str", imageField: "start_image_url" },
   "kling-v2.6-motion-std": { type: "fal", motionControl: "fal-ai/kling-video/v2.6/standard/motion-control", durationFormat: "kling-str" },
   "kling-v2.6-motion-pro": { type: "fal", motionControl: "fal-ai/kling-video/v2.6/pro/motion-control", durationFormat: "kling-str" },
-  "veo-3.1": { type: "fal", textToVideo: "fal-ai/veo3.1", imageToVideo: "fal-ai/veo3.1/image-to-video", durationFormat: "veo-str", imageField: "image_url" },
-  "veo-3.1-fast": { type: "fal", textToVideo: "fal-ai/veo3.1/fast", imageToVideo: "fal-ai/veo3.1/fast/image-to-video", durationFormat: "veo-str", imageField: "image_url" },
-  "veo-3.1-lite": { type: "fal", textToVideo: "fal-ai/veo3.1/lite", imageToVideo: "fal-ai/veo3.1/lite/image-to-video", durationFormat: "veo-str", imageField: "image_url" },
+  // Google Veo via APIYI (官逆 — only provider for these 3 models, no fallback)
+  // Note: APIYI exposes `veo-3.1` and `veo-3.1-fast`. We map "lite" → fast (cheapest tier).
+  "veo-3.1": { type: "apiyi", apiyiBaseModel: "veo-3.1" },
+  "veo-3.1-fast": { type: "apiyi", apiyiBaseModel: "veo-3.1-fast" },
+  "veo-3.1-lite": { type: "apiyi", apiyiBaseModel: "veo-3.1-fast" },
   "minimax-video": { type: "fal", textToVideo: "fal-ai/minimax/video-01-live", imageToVideo: "fal-ai/minimax/video-01-live/image-to-video", durationFormat: "minimax-none", imageField: "image_url" },
   "pixverse-v6": { type: "fal", textToVideo: "fal-ai/pixverse/v6/text-to-video", imageToVideo: "fal-ai/pixverse/v6/image-to-video", durationFormat: "pixverse-int", imageField: "image_url" },
   "ltx-2-19b": { type: "fal", textToVideo: "fal-ai/ltx-2-19b/text-to-video", imageToVideo: "fal-ai/ltx-2-19b/image-to-video", durationFormat: "ltx-frames", imageField: "image_url" },
