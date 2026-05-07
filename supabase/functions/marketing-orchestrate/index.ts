@@ -468,6 +468,7 @@ Deno.serve(async (req) => {
           surface,
           projectId,
           script_text: voiceoverText || finalPrompt,
+          generateAudio,
         });
         if (!vidRes.ok) {
           throw new Error(`video submit failed: ${vidRes.text.slice(0, 300)}`);
