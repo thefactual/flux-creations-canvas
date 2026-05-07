@@ -247,6 +247,40 @@ function updateVideoAndSave(videoId: string, updates: Partial<GeneratedVideo>, g
 }
 
 const activeSeedancePolls = new Set<string>();
+const activeVideoPolls = new Set<string>();
+
+async function pollGenericVideo(videoId: string, pollBody: Record<string, unknown>, get: () => VideoState, set: (s: Partial<VideoState>) => void) {
+  if (!pollBody.provider || !pollBody.taskId || activeVideoPolls.has(videoId)) return;
+  activeVideoPolls.add(videoId);
+  try {
+    const maxAttempts = 360; // ~30 min budget for slow models (Kling 3.0 Pro, Veo 3.1)
+    let delay = 4000;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, delay));
+      delay = Math.min(8000, delay + 250); // gentle backoff, cap at 8s
+      try {
+        const { data: pollData, error: pollError } = await supabase.functions.invoke('generate-video', { body: { action: 'poll', ...pollBody } });
+        if (pollError) continue;
+        if (pollData?.status === 'complete' && pollData.videoUrl) {
+          updateVideoAndSave(videoId, { status: 'complete', stage: 'complete', videoUrl: pollData.videoUrl, progress: 100 }, get, set);
+          return;
+        }
+        if (pollData?.status === 'failed') {
+          updateVideoAndSave(videoId, { status: 'failed', stage: 'failed', error: pollData.error || 'Generation failed' }, get, set);
+          return;
+        }
+        const prog = pollData?.progress;
+        if (typeof prog === 'number' && prog > 0) {
+          const videos = get().videos.map(v => v.id === videoId ? { ...v, progress: Math.round(prog) } : v);
+          set({ videos });
+        }
+      } catch {}
+    }
+    updateVideoAndSave(videoId, { status: 'failed', stage: 'failed', error: 'Video generation timed out' }, get, set);
+  } finally {
+    activeVideoPolls.delete(videoId);
+  }
+}
 
 async function pollSeedanceVideo(videoId: string, taskId: string, get: () => VideoState, set: (s: Partial<VideoState>) => void) {
   if (!taskId || activeSeedancePolls.has(videoId)) return;
