@@ -568,6 +568,11 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
           updateVideoAndSave(id, { status: 'failed', error: (data?.error || error?.message) ?? 'Seedance retry failed' }, get, set);
         } else if (data?.taskId) {
           const provider = normalizeSeedanceProvider(data?.provider, data.taskId);
+          if (data?.videoFallbackUsed) {
+            toast.message('Reference video skipped', {
+              description: 'AtlasCloud rejected the motion clip, so Seedance continued from the images and prompt instead.',
+            });
+          }
           updateVideoAndSave(id, {
             provider,
             taskId: data.taskId,
