@@ -388,6 +388,41 @@ function splitRefsByType(refs: unknown[]) {
   };
 }
 
+function videoDurationHintSeconds(rawUrl: string): number | null {
+  try {
+    const url = new URL(rawUrl);
+    const path = decodeURIComponent(url.pathname);
+    const last = path.split('/').pop() ?? '';
+    const candidates = [last, url.searchParams.get('duration'), url.searchParams.get('dur'), url.searchParams.get('t')].filter(Boolean) as string[];
+    for (const candidate of candidates) {
+      const match = candidate.match(/(?:^|[-_?&])(?:d|dur|duration)?([0-9]+(?:\.[0-9]+)?)s(?:\.|-|_|$)/i);
+      if (match) {
+        const value = Number(match[1]);
+        if (Number.isFinite(value) && value > 0) return value;
+      }
+    }
+  } catch { /* ignore hints */ }
+  return null;
+}
+
+function capReferenceVideosByKnownDuration(videoUrls: string[]) {
+  const accepted: string[] = [];
+  const skipped: string[] = [];
+  let knownTotal = 0;
+
+  for (const url of videoUrls) {
+    const hint = videoDurationHintSeconds(url);
+    if (hint !== null && knownTotal + hint > MAX_TOTAL_REFERENCE_VIDEO_SECONDS) {
+      skipped.push(url);
+      continue;
+    }
+    accepted.push(url);
+    if (hint !== null) knownTotal += hint;
+  }
+
+  return { accepted, skipped, knownTotal };
+}
+
 async function atlasSubmit(p: SubmitParams) {
   const body: Record<string, unknown> = {
     model: p.variant,
