@@ -298,7 +298,7 @@ async function pollSeedanceVideo(videoId: string, taskId: string, get: () => Vid
       await new Promise(r => setTimeout(r, delay));
       delay = Math.min(8000, delay + 250);
       const { data: poll } = await supabase.functions.invoke('seedance-generate-video', {
-        body: { action: 'poll', predictionId: taskId, videoId, provider: 'byteplus' },
+        body: { action: 'poll', predictionId: taskId, videoId, provider },
       });
       if (poll?.status === 'complete' && poll.videoUrl) {
         updateVideoAndSave(videoId, { status: 'complete', stage: 'complete', videoUrl: poll.videoUrl, progress: 100 }, get, set);
