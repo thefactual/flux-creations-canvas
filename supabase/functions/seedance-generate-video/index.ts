@@ -729,7 +729,7 @@ Deno.serve(async (req) => {
 
     // ===== AtlasCloud Seedance 2.0 fallback =====
     // Requires sd/assets registration for images (avoids real-person moderation).
-    const tryAtlas = async (): Promise<{ ok: true; predictionId: string; endpoint: string; provider: 'atlas'; audioFallbackUsed: boolean } | { ok: false; error: string }> => {
+    const tryAtlas = async (): Promise<{ ok: true; predictionId: string; endpoint: string; provider: 'atlas'; audioFallbackUsed: boolean; videoFallbackUsed: boolean } | { ok: false; error: string }> => {
       if (!ATLAS_KEY) return { ok: false, error: 'AtlasCloud not configured' };
 
       const imageAssets: string[] = [];
@@ -768,13 +768,14 @@ Deno.serve(async (req) => {
       };
       let submission = await atlasSubmit({ ...baseSubmit, generateAudio: effectiveGenerateAudio });
       let audioFallbackUsed = false;
+      let videoFallbackUsed = false;
       if (!submission.ok && isGeneratedAudioModeration(submission.error)) {
         audioFallbackUsed = true;
         submission = await atlasSubmit({ ...baseSubmit, generateAudio: false });
       }
       if (!submission.ok && videoAssets.length > 0 && isAtlasReferenceRejection(submission.error)) {
         log('WARN', 'atlas video reference rejected; retrying visual-only', { videos: videoAssets.length });
-        audioFallbackUsed = audioFallbackUsed || effectiveGenerateAudio;
+        videoFallbackUsed = true;
         submission = await atlasSubmit({
           ...baseSubmit,
           prompt: `${removeUnavailableVideoReferenceLanguage(baseSubmit.prompt)}\n\nThe uploaded motion reference video could not be used by the provider, so create the same scene from the image references and written action beats only.`,
@@ -783,7 +784,7 @@ Deno.serve(async (req) => {
         });
       }
       if (!submission.ok) return { ok: false, error: submission.error };
-      return { ok: true, predictionId: submission.predictionId, endpoint: submission.endpoint, provider: 'atlas', audioFallbackUsed };
+      return { ok: true, predictionId: submission.predictionId, endpoint: submission.endpoint, provider: 'atlas', audioFallbackUsed, videoFallbackUsed };
     };
 
     // ===== Attempt 0 (PRIMARY): Apiyi / laozhang.ai =====
@@ -859,7 +860,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    log('INFO', 'submit ok', { provider: result.provider, predictionId: result.predictionId, endpoint: result.endpoint, usedFallback, audioFallbackUsed: result.audioFallbackUsed });
+    log('INFO', 'submit ok', { provider: result.provider, predictionId: result.predictionId, endpoint: result.endpoint, usedFallback, audioFallbackUsed: result.audioFallbackUsed, videoFallbackUsed: result.videoFallbackUsed });
 
     return json({
       submitted: true,
@@ -869,6 +870,7 @@ Deno.serve(async (req) => {
       status: 'processing',
       stage: 'processing',
       audioFallbackUsed: result.audioFallbackUsed,
+      videoFallbackUsed: result.videoFallbackUsed,
       usedFallback,
     });
   } catch (e) {
