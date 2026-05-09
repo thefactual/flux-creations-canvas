@@ -427,13 +427,26 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
     (async () => {
       const maxAttempts = 360;
       let delay = 4000;
+      let currentTaskId: string = data.taskId;
+      let currentProvider: string = usedProvider;
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise(r => setTimeout(r, delay));
         delay = Math.min(8000, delay + 250);
         try {
           const { data: poll } = await supabase.functions.invoke('seedance-generate-video', {
-            body: { action: 'poll', predictionId: data.taskId, videoId, provider: usedProvider },
+            body: { action: 'poll', predictionId: currentTaskId, videoId, provider: currentProvider },
           });
+          // Edge fn may swap provider mid-flight (AtlasCloud copyright →
+          // BytePlus auto-fallback). Re-target the next poll at the new task.
+          if (poll?.taskId && poll.taskId !== currentTaskId) {
+            currentTaskId = String(poll.taskId);
+            currentProvider = String(poll.provider ?? currentProvider);
+            if (poll?.usedFallback) {
+              toast.message('Switched to BytePlus', {
+                description: 'AtlasCloud blocked the output for copyright — BytePlus is finishing it.',
+              });
+            }
+          }
           if (poll?.status === 'complete') return;
           if (poll?.status === 'failed') {
             toast.error(poll.error || 'Seedance generation failed');

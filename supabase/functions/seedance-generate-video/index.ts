@@ -168,7 +168,14 @@ function friendly(raw: string | undefined): string {
   if (/reference asset was rejected|check the URL, format, and size|unsupported format/i.test(raw)) {
     return 'AtlasCloud rejected a reference file. Reference videos must be MP4/MOV at 480p/720p, under 50MB, and total video reference duration must stay under 15s.';
   }
+  if (/copyright|output video may be related/i.test(raw)) {
+    return 'AtlasCloud blocked the generated video for possible copyright (recognizable brand, logo, character, or celebrity in the reference). Replace the flagged reference with a generic photo and retry.';
+  }
   return raw;
+}
+
+function isCopyrightRejection(raw: string | undefined): boolean {
+  return /copyright|output video may be related/i.test(raw ?? '');
 }
 
 function isInputPrivacyRejection(raw: string | undefined): boolean {
@@ -684,6 +691,48 @@ Deno.serve(async (req) => {
         return json({ status: 'complete', stage: 'complete', videoUrl: out.videoUrl });
       }
       if (out.status === 'failed') {
+        // ── Auto-fallback: AtlasCloud copyright/output-moderation → BytePlus ──
+        // AtlasCloud occasionally flags the *generated* output for copyright
+        // even when refs are clean. Instead of failing the row, transparently
+        // resubmit on BytePlus and return the new taskId so the client keeps
+        // polling without the user noticing.
+        if (provider === 'atlas' && isCopyrightRejection(out.error) && videoId && BYTEPLUS_KEY) {
+          try {
+            const { data: row } = await admin
+              .from('video_generations')
+              .select('prompt, reference_images, duration, resolution, aspect_ratio')
+              .eq('id', videoId)
+              .maybeSingle();
+            if (row) {
+              const split = splitRefsByType((row.reference_images as string[]) ?? []);
+              const bp = await byteplusSubmit({
+                prompt: String(row.prompt ?? ''),
+                imageUrls: split.imageUrls,
+                videoUrls: split.videoUrls,
+                audioUrls: split.audioUrls,
+                duration: Number(row.duration ?? 5),
+                resolution: String(row.resolution ?? '720p'),
+                ratio: String(row.aspect_ratio ?? '16:9'),
+                generateAudio: false,
+                variant: SEEDANCE_REF,
+              });
+              if (bp.ok) {
+                log('INFO', 'atlas copyright → byteplus fallback', { videoId, newTaskId: bp.predictionId });
+                await updateRow(admin, videoId, {
+                  task_id: bp.predictionId, provider: 'byteplus',
+                  stage: 'fallback-byteplus', status: 'processing', error: null,
+                });
+                return json({
+                  status: 'processing', stage: 'fallback-byteplus',
+                  taskId: bp.predictionId, provider: 'byteplus', usedFallback: true,
+                });
+              }
+              log('WARN', 'byteplus copyright fallback failed', { error: bp.error });
+            }
+          } catch (e) {
+            log('WARN', 'copyright fallback threw', { error: String(e) });
+          }
+        }
         if (videoId) await updateRow(admin, videoId, { status: 'failed', stage: 'failed', error: out.error, provider });
         return json({ status: 'failed', stage: 'failed', error: out.error });
       }
