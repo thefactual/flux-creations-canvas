@@ -570,7 +570,9 @@ Deno.serve(async (req) => {
     if (action === 'poll') {
       const predictionId = String(body.predictionId ?? body.taskId ?? '').trim();
       const videoId = String(body.videoId ?? '').trim();
-      const provider = String(body.provider ?? 'byteplus').toLowerCase();
+      const providerRaw = String(body.provider ?? 'byteplus').toLowerCase();
+      // Accept 'atlas' or 'atlascloud' (legacy clients) as the AtlasCloud route.
+      const provider = providerRaw.startsWith('atlas') ? 'atlas' : providerRaw;
       if (!predictionId) return json({ error: 'predictionId required' }, 400);
 
       const out = provider === 'atlas'
