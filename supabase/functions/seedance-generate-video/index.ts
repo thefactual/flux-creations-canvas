@@ -723,7 +723,7 @@ Deno.serve(async (req) => {
                 if (r.assetUrl) videoAssets.push(r.assetUrl);
               }
               const atlasRetry = await atlasSubmit({
-                prompt: String(row.prompt ?? ''),
+                prompt: sanitizeAtlasCopyrightPrompt(String(row.prompt ?? '')),
                 imageUrls: imageAssets,
                 videoUrls: videoAssets,
                 audioUrls: [],
