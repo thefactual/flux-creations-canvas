@@ -637,7 +637,7 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
         error: row.status === 'processing' && !row.task_id && Date.now() - new Date(row.created_at).getTime() > orphanMs
           ? orphanError
           : row.error || undefined,
-        provider: row.provider || null,
+        provider: normalizeSeedanceProvider(row.provider, row.task_id),
         taskId: row.task_id || null,
         responseUrl: row.response_url || null,
         statusUrl: row.status_url || null,
@@ -664,7 +664,7 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
         });
       (data || []).forEach((row: any) => {
         if (row.model === 'seedance-2.0' && row.status === 'processing' && row.task_id) {
-          pollSeedanceVideo(row.id, row.task_id, get, set, row.provider ?? 'byteplus');
+          pollSeedanceVideo(row.id, row.task_id, get, set, row.provider);
         } else if (row.status === 'processing' && row.provider && row.task_id) {
           const pollBody: Record<string, unknown> = { provider: row.provider, taskId: row.task_id };
           if (row.response_url) pollBody.responseUrl = row.response_url;
@@ -694,7 +694,7 @@ export const useVideoStore = create<VideoState>()((set, get) => ({
       thumbnailUrl: fallbackVideoThumbnail(row),
       createdAt: new Date(row.created_at).getTime(),
       error: row.error || undefined,
-      provider: row.provider || null,
+      provider: row.model === 'seedance-2.0' ? normalizeSeedanceProvider(row.provider, row.task_id) : row.provider || null,
       taskId: row.task_id || null,
       responseUrl: row.response_url || null,
       statusUrl: row.status_url || null,
