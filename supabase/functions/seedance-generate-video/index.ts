@@ -83,6 +83,13 @@ const AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|flac)(\?|#|$)/i;
 function looksLikeVideo(url: string): boolean { return VIDEO_EXT.test(url); }
 function looksLikeAudio(url: string): boolean { return AUDIO_EXT.test(url); }
 
+function isAtlasDirectVideoUrl(url: string): boolean {
+  // AtlasCloud reference_videos accepts normal public MP4/MOV URLs. Re-uploading
+  // those through uploadMedia can return extensionless atlas-img URLs, which
+  // Seedance then rejects as an invalid/unsupported reference file.
+  return /\.(mp4|mov)(\?|#|$)/i.test(url);
+}
+
 function clampDuration(d: unknown): number {
   const n = Number(d);
   if (!Number.isFinite(n)) return 5;
@@ -318,7 +325,10 @@ async function createRequiredAtlasAsset(
 ): Promise<{ assetUrl?: string; error?: string }> {
   if (assetType === 'Video') {
     // AtlasCloud docs: sd/assets is a subject portrait/image library only;
-    // reference_videos accept uploaded URLs, so videos go through uploadMedia.
+    // reference_videos accept public MP4/MOV URLs directly. Prefer the original
+    // storage URL when it has a supported extension so the generation request
+    // does not receive an extensionless uploadMedia URL.
+    if (isAtlasDirectVideoUrl(rawUrl)) return { assetUrl: rawUrl };
     const mediaUrl = await uploadAtlasMedia(rawUrl, label);
     if (mediaUrl) return { assetUrl: mediaUrl };
     return { error: 'AtlasCloud could not ingest the reference video. Retry with a smaller file (<50MB) or remove that reference.' };
