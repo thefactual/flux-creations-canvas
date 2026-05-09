@@ -183,6 +183,10 @@ function isAtlasReferenceRejection(raw: string | undefined): boolean {
   return /AtlasCloud rejected a reference file|reference asset was rejected|check the URL, format, and size|unsupported format/i.test(raw ?? '');
 }
 
+function isReferenceVideoDurationError(raw: string | undefined): boolean {
+  return /video total duration|total video reference duration|reference videos?.*(?:15|too long|duration)/i.test(raw ?? '');
+}
+
 function removeUnavailableVideoReferenceLanguage(prompt: string): string {
   return prompt
     .replace(/\buse\s+the\s+reference\s+videos?\s+the\s+reference\s+video[^.\n]*(?:\.|,)?/gi, 'Use natural raw expressions and motion from the written directions.')
