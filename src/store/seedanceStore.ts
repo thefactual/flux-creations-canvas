@@ -385,6 +385,11 @@ export const useSeedanceStore = create<SeedanceState>((set, get) => ({
         description: 'Seedance moderation rejected the audio track — retried as visual-only.',
       });
     }
+    if (data?.videoFallbackUsed) {
+      toast.message('Reference video skipped', {
+        description: 'AtlasCloud rejected the motion clip, so Seedance continued from the images and prompt instead.',
+      });
+    }
     if (data?.usedFallback) {
       const fallbackName = data?.provider === 'atlas' ? 'AtlasCloud' : data?.provider === 'apiyi' ? 'Apiyi' : 'BytePlus';
       toast.message(`Switched to ${fallbackName}`, {
