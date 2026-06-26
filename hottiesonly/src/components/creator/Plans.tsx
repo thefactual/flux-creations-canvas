@@ -90,10 +90,6 @@ export function Plans() {
             <PlanCard key={tier.id} tier={tier} />
           ))}
         </div>
-
-        <p className="mt-6 text-center text-xs text-zinc-400">
-          Cancel anytime · Discreet billing · Demo checkout, no real charge
-        </p>
       </div>
     </section>
   );
