@@ -3,7 +3,7 @@ import { Send, Lock } from "lucide-react";
 import { useChat, COST_PER_MESSAGE } from "@/store/chatStore";
 import { useWallet, canSpend } from "@/store/walletStore";
 import { useUI } from "@/store/uiStore";
-import { CREATOR } from "@/data/creator";
+import { useProfile } from "@/store/profileStore";
 import { GiftBar } from "./GiftBar";
 
 export function Composer() {
@@ -11,6 +11,7 @@ export function Composer() {
   const credits = useWallet((s) => s.credits);
   const sendText = useChat((s) => s.sendText);
   const openBuyCredits = useUI((s) => s.openBuyCredits);
+  const name = useProfile((s) => s.profile.name);
 
   const affordable = canSpend(credits, COST_PER_MESSAGE);
 
@@ -46,7 +47,7 @@ export function Composer() {
               }
             }}
             rows={1}
-            placeholder={affordable ? `Message ${CREATOR.name}…` : "Top up to keep chatting…"}
+            placeholder={affordable ? `Message ${name}…` : "Top up to keep chatting…"}
             className="max-h-28 flex-1 resize-none bg-transparent px-2.5 py-2 text-[15px] placeholder:text-white/35 focus:outline-none"
           />
           <button

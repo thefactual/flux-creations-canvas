@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { useWallet } from "./walletStore";
-import { CREATOR } from "@/data/creator";
+import { getProfile } from "./profileStore";
 
 // Chat with the creator (or her AI). 1 credit per message. The reply is a
 // local mock so the experience is complete without a backend — swap mockReply
@@ -125,7 +125,7 @@ export const useChat = create<State>((set, get) => ({
         kind: "text",
         text:
           kind === "gift"
-            ? `omg you spoil me 🥹 thank you baby, ${CREATOR.name} loves you`
+            ? `omg you spoil me 🥹 thank you baby, ${getProfile().name} loves you`
             : "you're too generous 😘 you just made my whole night",
         createdAt: Date.now(),
       };
