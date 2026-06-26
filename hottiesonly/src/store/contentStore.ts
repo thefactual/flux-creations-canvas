@@ -29,7 +29,7 @@ function uid() {
 function seed(): Post[] {
   // Each seed post points at /images/post-N.jpg; drop those files in public/images
   // and they appear automatically. Until then the gradient shows.
-  return LOCKED_FEED.map((p, i) => ({ ...p, liked: false, imageSrc: `/images/post-${i + 1}.jpg` }));
+  return LOCKED_FEED.map((p, i) => ({ ...p, liked: false, imageSrc: `/images/post-${i + 1}.webp` }));
 }
 
 function load(): Post[] {
