@@ -33,7 +33,6 @@ const NAV_ITEMS = [
   { to: '/video', label: 'Video' },
   { to: '/spaces-projects', label: 'Spaces' },
   { to: '/marketingstudio', label: 'Marketing Studio', badge: 'New' },
-  { to: '/chat', label: 'Chat', badge: 'New' },
 ];
 
 export function GlobalHeader() {

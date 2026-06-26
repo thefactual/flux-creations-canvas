@@ -12,7 +12,6 @@ import Video from "./pages/Video.tsx";
 import SpacesProjects from "./pages/SpacesProjects.tsx";
 import MarketingStudio from "./pages/MarketingStudio.tsx";
 import MarketingStudioProject from "./pages/MarketingStudioProject.tsx";
-import PayToChat from "./pages/PayToChat.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -41,7 +40,6 @@ const App = () => (
           <Route path="/spaces" element={<Index />} />
           <Route path="/marketingstudio" element={<MarketingStudio />} />
           <Route path="/marketingstudio/:slug" element={<MarketingStudioProject />} />
-          <Route path="/chat" element={<PayToChat />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
