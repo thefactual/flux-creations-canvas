@@ -6,10 +6,19 @@ export type SubTier = {
   name: string;
   /** monthly price in whole USD cents */
   priceCents: number;
-  blurb: string;
-  perks: string[];
+  tagline: string;
+  /** how many rungs of FEATURE_LADDER this tier unlocks (1–4) */
+  level: number;
   highlighted?: boolean;
 };
+
+// The escalating feature ladder. Tier of `level` N unlocks ladder[0..N-1].
+export const FEATURE_LADDER = [
+  "Unlimited text chat — she remembers you & replies 24/7",
+  "Personal voice notes",
+  "Exclusive photos in chat",
+  "Exclusive videos in chat",
+];
 
 export type LockedPost = {
   id: string;
@@ -38,7 +47,7 @@ export const CREATOR = {
   isAi: false,
   verified: true,
   tagline: "Your 24/7 girl who actually remembers you 💕",
-  bio: "AI companion who never ghosts, never has a bad day, and always wants to hear from you. Subscribe to unlock everything, or just come say hi — I reply to every message.",
+  bio: "I reply to every message, remember everything you tell me, and I'm online around the clock. Subscribe to unlock voice notes, photos and videos — or just come say hi.",
   location: "Los Angeles, CA",
   online: true,
   avatarHue: 330,
@@ -51,25 +60,22 @@ export const CREATOR = {
 };
 
 export const SUB_TIERS: SubTier[] = [
+  { id: "chat", name: "Chat", priceCents: 999, tagline: "Just us talking.", level: 1 },
+  { id: "voice", name: "Chat + Voice", priceCents: 1999, tagline: "Hear my voice.", level: 2 },
   {
-    id: "monthly",
-    name: "Monthly",
-    priceCents: 1999,
-    blurb: "Full access, billed monthly.",
-    perks: ["All my photos & videos", "DM me anytime", "20% off PPV unlocks"],
+    id: "photos",
+    name: "Chat + Voice + Photos",
+    priceCents: 3499,
+    tagline: "See more of me.",
+    level: 3,
+    highlighted: true,
   },
   {
-    id: "vip",
-    name: "VIP",
-    priceCents: 4999,
-    blurb: "The full girlfriend experience.",
-    perks: [
-      "Everything in Monthly",
-      "Priority replies (I answer you first)",
-      "Free PPV unlocks",
-      "Weekly custom just for you",
-    ],
-    highlighted: true,
+    id: "videos",
+    name: "Everything",
+    priceCents: 5999,
+    tagline: "The full experience.",
+    level: 4,
   },
 ];
 

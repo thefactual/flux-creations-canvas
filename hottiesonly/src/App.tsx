@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import CreatorProfile from "@/pages/CreatorProfile";
 import Chat from "@/pages/Chat";
 import { BuyCreditsModal } from "@/components/billing/BuyCreditsModal";
-import { SubscribeModal } from "@/components/billing/SubscribeModal";
 
 export default function App() {
   return (
@@ -16,9 +15,8 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {/* Global billing modals, available on every route */}
+      {/* Buy-credits modal (used from chat), available on every route */}
       <BuyCreditsModal />
-      <SubscribeModal />
     </BrowserRouter>
   );
 }
