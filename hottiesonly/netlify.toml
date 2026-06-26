@@ -1,0 +1,12 @@
+# Netlify config. When deploying from the flux-creations-canvas monorepo, set the
+# site's "base directory" to `hottiesonly`. If this folder is its own repo, the
+# base is the repo root and these defaults work as-is.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA fallback so client-side routes (/chat, /:handle) resolve to index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
