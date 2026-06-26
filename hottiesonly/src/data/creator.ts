@@ -35,7 +35,7 @@ export const CREATOR = {
   name: "Sophia Rosenberg",
   handle: "sophia.rosenberg.ho",
   /** AI-creator disclosure badge — a selling point on HO.com, not a burden */
-  isAi: true,
+  isAi: false,
   verified: true,
   tagline: "Your 24/7 girl who actually remembers you 💕",
   bio: "AI companion who never ghosts, never has a bad day, and always wants to hear from you. Subscribe to unlock everything, or just come say hi — I reply to every message.",
