@@ -32,8 +32,8 @@ export type Gift = {
 };
 
 export const CREATOR = {
-  name: "Mia Rose",
-  handle: "miarose",
+  name: "Sophia Rosenberg",
+  handle: "sophia.rosenberg.ho",
   /** AI-creator disclosure badge — a selling point on HO.com, not a burden */
   isAi: true,
   verified: true,
