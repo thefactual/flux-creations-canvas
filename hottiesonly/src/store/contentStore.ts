@@ -18,6 +18,8 @@ export type Post = {
   hue: number;
   /** uploaded image as a data URL; absent = gradient placeholder */
   imageDataUrl?: string;
+  /** default image path under public/ (e.g. /images/post-1.jpg); falls back to gradient if missing */
+  imageSrc?: string;
 };
 
 function uid() {
@@ -25,7 +27,9 @@ function uid() {
 }
 
 function seed(): Post[] {
-  return LOCKED_FEED.map((p) => ({ ...p, liked: false }));
+  // Each seed post points at /images/post-N.jpg; drop those files in public/images
+  // and they appear automatically. Until then the gradient shows.
+  return LOCKED_FEED.map((p, i) => ({ ...p, liked: false, imageSrc: `/images/post-${i + 1}.jpg` }));
 }
 
 function load(): Post[] {

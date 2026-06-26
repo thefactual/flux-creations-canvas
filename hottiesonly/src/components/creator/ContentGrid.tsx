@@ -31,23 +31,25 @@ function Tile({ post }: { post: Post }) {
     unlockPost(post.id, cost);
   };
 
+  // Uploaded image wins; otherwise the default /images/post-N.jpg; otherwise gradient.
+  const imgSrc = post.imageDataUrl ?? post.imageSrc;
+
   return (
     <div
       className="group relative aspect-[4/5] overflow-hidden rounded-2xl border border-ink-800"
-      style={
-        post.imageDataUrl
-          ? undefined
-          : {
-              backgroundImage: `linear-gradient(140deg, hsl(${post.hue} 70% 45%), hsl(${
-                post.hue - 35
-              } 65% 28%))`,
-            }
-      }
+      style={{
+        backgroundImage: `linear-gradient(140deg, hsl(${post.hue} 70% 45%), hsl(${
+          post.hue - 35
+        } 65% 28%))`,
+      }}
     >
-      {post.imageDataUrl && (
+      {imgSrc && (
         <img
-          src={post.imageDataUrl}
+          src={imgSrc}
           alt=""
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
           className={cn("absolute inset-0 h-full w-full object-cover", !isOpen && "blur-xl scale-110")}
         />
       )}
@@ -111,9 +113,9 @@ export function ContentGrid() {
   return (
     <section className="mx-auto mt-8 max-w-3xl px-4 pb-12">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold">Content</h2>
+        <h2 className="text-base font-bold text-ink-900">Content</h2>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-white/40">
+          <span className="text-xs text-zinc-500">
             {posts.length} posts · {ppvCount} PPV
           </span>
           <Button size="sm" onClick={() => setUploadOpen(true)}>
@@ -128,8 +130,8 @@ export function ContentGrid() {
           className="mb-4 flex w-full items-center justify-between rounded-2xl border border-brand-500/40 bg-brand-500/[0.08] px-4 py-3 text-left transition-colors hover:bg-brand-500/[0.14]"
         >
           <span className="text-sm">
-            <span className="font-bold">Subscribe to unlock everything</span>
-            <span className="block text-white/55">All photos & videos + DM access. From $19.99/mo.</span>
+            <span className="font-bold text-ink-900">Subscribe to unlock everything</span>
+            <span className="block text-zinc-600">All photos & videos + DM access. From $19.99/mo.</span>
           </span>
           <span className="rounded-xl brand-gradient px-3 py-2 text-sm font-bold">Subscribe</span>
         </button>
