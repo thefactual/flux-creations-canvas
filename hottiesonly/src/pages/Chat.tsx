@@ -5,6 +5,7 @@ import { Composer } from "@/components/chat/Composer";
 import { useWallet } from "@/store/walletStore";
 import { useUI } from "@/store/uiStore";
 import { useProfile } from "@/store/profileStore";
+import { Avatar } from "@/components/ui/Avatar";
 
 export default function Chat() {
   const credits = useWallet((s) => s.credits);
@@ -24,18 +25,11 @@ export default function Chat() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="relative shrink-0">
-            {profile.avatarDataUrl ? (
-              <img src={profile.avatarDataUrl} alt={profile.name} className="h-10 w-10 rounded-full object-cover" />
-            ) : (
-              <div
-                className="h-10 w-10 rounded-full"
-                style={{
-                  backgroundImage: `linear-gradient(135deg, hsl(${profile.avatarHue} 85% 60%), hsl(${
-                    profile.avatarHue - 40
-                  } 80% 40%))`,
-                }}
-              />
-            )}
+            <Avatar
+              src={profile.avatarDataUrl ?? "/images/avatar.jpg"}
+              hue={profile.avatarHue}
+              className="h-10 w-10 rounded-full"
+            />
             <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-ink-950 bg-green-400" />
           </div>
           <div className="min-w-0">

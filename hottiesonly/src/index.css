@@ -10,7 +10,8 @@
     height: 100%;
   }
   body {
-    @apply bg-ink-950 text-white antialiased;
+    /* White page canvas; cards/header/chat stay dark and keep their own white text. */
+    @apply bg-white text-white antialiased;
     font-feature-settings: "cv11", "ss01";
   }
   ::-webkit-scrollbar {
