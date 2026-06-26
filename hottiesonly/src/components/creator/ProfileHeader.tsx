@@ -39,7 +39,7 @@ export function ProfileHeader() {
           {/* Avatar */}
           <div className="relative">
             <Avatar
-              src={profile.avatarDataUrl ?? "/images/avatar.jpg"}
+              src={profile.avatarDataUrl ?? "/images/avatar.webp"}
               hue={profile.avatarHue}
               className="h-24 w-24 rounded-3xl border-4 border-white sm:h-28 sm:w-28"
             />

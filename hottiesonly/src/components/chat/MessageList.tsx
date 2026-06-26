@@ -60,7 +60,7 @@ export function MessageList() {
       {messages.length === 0 && (
         <div className="flex h-full flex-col items-center justify-center text-center">
           <Avatar
-            src={profile.avatarDataUrl ?? "/images/avatar.jpg"}
+            src={profile.avatarDataUrl ?? "/images/avatar.webp"}
             hue={profile.avatarHue}
             className="mb-3 h-16 w-16 rounded-2xl"
           />

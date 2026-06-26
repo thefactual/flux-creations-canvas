@@ -26,7 +26,7 @@ export default function Chat() {
           </Link>
           <div className="relative shrink-0">
             <Avatar
-              src={profile.avatarDataUrl ?? "/images/avatar.jpg"}
+              src={profile.avatarDataUrl ?? "/images/avatar.webp"}
               hue={profile.avatarHue}
               className="h-10 w-10 rounded-full"
             />
